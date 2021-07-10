@@ -16,7 +16,6 @@ namespace Microsoft.CopyOnWrite
         /// <summary>
         /// Gets a singleton instance of the CoW filesystem appropriate for this operating system.
         /// </summary>
-        /// <returns></returns>
         public static ICopyOnWriteFilesystem GetInstance() => Instance;
 
         private static ICopyOnWriteFilesystem Create()
