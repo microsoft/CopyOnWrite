@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Microsoft.CopyOnWrite</RootNamespace>
+    <TargetFramework>netstandard2.0</TargetFramework>
+
+    <Nullable>enable</Nullable>
+
+    <!-- Use embedded PDB mode to improve diagnosing and debugging experience. -->
+    <DebugType>embedded</DebugType>
+
+    <DistribDir>$(DistribRoot)Package\</DistribDir>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DocumentationFile>bin\Release\Microsoft.CopyOnWrite.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageOutputPath>$(DistribDir)</PackageOutputPath>
+    
+    <!-- Also see common properties in Directory.Build.props -->
+    <PackageProjectUrl>https://github.com/microsoft/CopyOnWrite</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/microsoft/CopyOnWrite.git</RepositoryUrl>
+    <PackageDescription>.NET library that encapsulates OS and filesystem differences in the ability to create Copy-on-Write file links.</PackageDescription>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.xml</AllowedOutputExtensionsInPackageBuildOutputFolder>
+
+  </PropertyGroup>
+
+</Project>

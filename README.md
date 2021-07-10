@@ -1,14 +1,38 @@
-# Project
+# CopyOnWrite
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+This repo and its resulting NuGet library `CopyOnWrite` provide a .NET layer on top of OS-specific logic that provides copy-on-write linking for files (a.k.a. CoW, file cloning, or reflnking). CoW linking provides the ability to copy a file without actually copying the original file's bytes from one disk location to another. The filesystem is in charge of ensuring that if the original file is modified or deleted, the CoW linked files remain unmodified by lazily copying the original file's bytes into each link. Unlike symlinks or hardlinks, write to CoW links do not write through to the original file, as the filesystem breaks the link and copies in a lazy fashion. This enables scenarios like file caches where a single copy of a file held in a content-addressable or other store is safely linked to many locations in a filesystem with low I/O overhead.
 
-As the maintainer of this project, please make a few updates:
+This library allows a .NET developer to:
 
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+* Discover whether CoW links are allowed between two filesystem paths,
+* Discover whether CoW links are allowed for a directory tree based at a specific root directory,
+* Create CoW links.
+
+Discovery is important, as different operating systems and different filesystems available for those operating systems provide varying levels of CoW link suppport:
+
+* Windows: The default NTFS filesystem does NOT support CoW, but the ReFS filesystem does.
+* Linux: Btrfs, Xfs, Zfs support CoW while ext4 does not.
+* Mac: AppleFS supports CoW by default.
+
+When using this library you may need to create a wrapper that copies the file if CoW is not available.
+
+
+## Example
+```c#
+using Microsoft.CopyOnWrite;
+
+ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
+bool canCloneInCurrentDirectory = cow.CopyOnWriteLinkSupportedInDirectoryTree(Environment.CurrentDirectory);
+if (canCloneInCurrentDirectory)
+{
+    cow.CloneFile(existingFile, cowLinkFilePath);
+}
+```
+
+
+## Release History
+* 0.1.0 July 2021: Windows ReFS support. Mac and Linux support throws NotSupportedException.
+
 
 ## Contributing
 

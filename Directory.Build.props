@@ -1,0 +1,27 @@
+<Project>
+
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)build\CopyOnWrite.snk</AssemblyOriginatorKeyFile>
+
+    <!--When building from command line with 'msbuild' command the Configuration property may be null. Setting the default to compute the right output directory.-->
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+
+    <DistribRoot>$(MSBuildThisFileDirectory)distrib\$(Configuration)\</DistribRoot>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+
+    <TreatWarningsAsErrors Condition="'$(TreatWarningsAsErrors)' == ''">true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- Common assembly version and other properties. Also used in package publish. -->
+  <PropertyGroup>
+    <Version>0.1.0.0</Version>
+
+    <Company>Microsoft</Company>
+    <Copyright>Copyright (c) Microsoft Corporation</Copyright>
+    <Description>.NET library that encapsulates OS and filesystem differences in the ability to create Copy-on-Write file links.</Description>
+    <Product>Microsoft.CopyOnWrite</Product>
+  </PropertyGroup>
+
+</Project>
