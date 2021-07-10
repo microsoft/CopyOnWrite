@@ -28,6 +28,7 @@
       For release notes see https://github.com/Microsoft/CopyOnWrite#release-history .
     </PackageDescription>
     <PackageTags>CoW copy-on-write copy write clone file reflink clonefile ficlone ReFS Windows Mac macOS Linux</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.xml</AllowedOutputExtensionsInPackageBuildOutputFolder>
 
   </PropertyGroup>
