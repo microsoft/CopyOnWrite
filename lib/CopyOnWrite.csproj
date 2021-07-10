@@ -23,7 +23,11 @@
     <!-- Also see common properties in Directory.Build.props -->
     <PackageProjectUrl>https://github.com/microsoft/CopyOnWrite</PackageProjectUrl>
     <RepositoryUrl>https://github.com/microsoft/CopyOnWrite.git</RepositoryUrl>
-    <PackageDescription>.NET library that encapsulates OS and filesystem differences in the ability to create Copy-on-Write file links.</PackageDescription>
+    <PackageDescription>
+      A .NET library that encapsulates OS and filesystem differences for creating Copy-on-Write file links.
+      For release notes see https://github.com/Microsoft/CopyOnWrite#release-history .
+    </PackageDescription>
+    <PackageTags>CoW copy-on-write copy write clone file reflink clonefile ficlone ReFS Windows Mac macOS Linux</PackageTags>
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.xml</AllowedOutputExtensionsInPackageBuildOutputFolder>
 
   </PropertyGroup>
