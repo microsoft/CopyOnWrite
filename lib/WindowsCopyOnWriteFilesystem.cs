@@ -166,20 +166,7 @@ namespace Microsoft.CopyOnWrite
             }
 
             // Set the destination on-disk size the same as the source.
-            // TODO: Remove?
             destStream.SetLength(sourceFileLength);
-            /*
-            bool result = NativeMethods.SetFileInformationByHandle(
-                destStream.SafeFileHandle!,
-                NativeMethods.FileInformationClass.FileEndOfFileInfo,
-                ref sourceFileLength,
-                Marshal.SizeOf(typeof(long)));
-            if (!result)
-            {
-                int lastErr = Marshal.GetLastWin32Error();
-                throw new Win32Exception(lastErr, $"Failed setting file size for destination '{destination}' with winerror {lastErr}");
-            }
-            */
 
             var duplicateExtentsData = new NativeMethods.DUPLICATE_EXTENTS_DATA
             {
@@ -332,22 +319,6 @@ namespace Microsoft.CopyOnWrite
                 out ulong lpBytesPerSector,
                 out ulong lpNumberOfFreeClusters,
                 out ulong lpTotalNumberOfClusters);
-
-            /// <summary>
-            /// Specific overload for setting file size via implicit ref to FILE_END_OF_FILE_INFO.
-            /// </summary>
-            [DllImport("Kernel32.dll", SetLastError = true)]
-            public static extern bool SetFileInformationByHandle(
-                SafeHandle hFile,
-                FileInformationClass fileInformationClass,  // Use FileInformationClass.FileEndOfFileInfo
-                ref long endOfFileInfo,
-                int dwBufferSize);
-
-            // Full version: http://www.pinvoke.net/default.aspx/kernel32/SetFileInformationByHandle.html
-            public enum FileInformationClass
-            {
-                FileEndOfFileInfo = 6,
-            }
 
             // For full version see https://www.pinvoke.net/default.aspx/kernel32.GetVolumeInformation
             [Flags]
