@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.CopyOnWrite.Tests
@@ -132,6 +133,8 @@ namespace Microsoft.CopyOnWrite.Tests
                 string dest2Contents = File.ReadAllText(dest2Path);
                 Assert.AreEqual("AABBCCDD", dest2Contents);
 
+                // TODO: Clone a hardlink and symlink.
+
                 // Delete original file, ensure clones remain materialized.
                 File.Delete(source1Path);
                 Assert.IsTrue(File.Exists(dest1Path));
@@ -178,7 +181,7 @@ namespace Microsoft.CopyOnWrite.Tests
                     CloneFileMissingSourceDir(refsDriveRoot);
                     CloneFileMissingSourceFileInExistingDir(refsDriveRoot);
                     CloneFileSourceIsDir(refsDriveRoot);
-
+                    StressTestCloning(refsDriveRoot);
                 }
             }
             finally
@@ -235,6 +238,27 @@ namespace Microsoft.CopyOnWrite.Tests
             File.WriteAllText(sourceFilePath, "ABC");
             ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
             Assert.ThrowsException<UnauthorizedAccessException>(() => cow.CloneFile(sourceFilePath, refsRoot));
+        }
+
+        private static void StressTestCloning(string refsRoot)
+        {
+            ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
+
+            for (int round = 0; round < 3; round++)
+            {
+                string stressFolder = Path.Combine(refsRoot, $"Stress{round}");
+                Directory.CreateDirectory(stressFolder);
+                string origFilePath = Path.Combine(stressFolder, "orig");
+                File.WriteAllText(origFilePath, "1234abcd");
+
+                Parallel.For(0, cow.MaxClones, i =>
+                {
+                    Console.WriteLine($"Running parallel stress test for {cow.MaxClones} CoW links");
+                    string testPath = Path.Combine(stressFolder, $"test{i}");
+                    cow.CloneFile(origFilePath, testPath);
+                    Assert.AreEqual("1234abcd", File.ReadAllText(testPath), testPath);
+                });
+            }
         }
 
         private static void RunPowershellScript(string scriptPath, string args)

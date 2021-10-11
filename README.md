@@ -7,6 +7,7 @@ This library allows a .NET developer to:
 * Discover whether CoW links are allowed between two filesystem paths,
 * Discover whether CoW links are allowed for a directory tree based at a specific root directory,
 * Create CoW links.
+* Find filesystem CoW link limits.
 
 Discovery is important, as different operating systems and different filesystems available for those operating systems provide varying levels of CoW link suppport:
 

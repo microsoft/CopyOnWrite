@@ -33,6 +33,10 @@ namespace Microsoft.CopyOnWrite
 
         private readonly ConcurrentDictionary<char, DriveVolumeInfo> _driveLetterToInfoMap = new ();
 
+        // https://docs.microsoft.com/en-us/windows-server/storage/refs/block-cloning#functionality-restrictions-and-remarks
+        /// <inheritdoc />
+        public int MaxClones => 8175;
+
         // TODO: Deal with \??\ prefixes
         // TODO: Deal with \\?\ prefixes
         /// <inheritdoc />
@@ -196,7 +200,16 @@ namespace Microsoft.CopyOnWrite
                 if (!ioctlResult)
                 {
                     int lastErr = Marshal.GetLastWin32Error();
-                    throw new Win32Exception(lastErr, $"Failed copy-on-write cloning with winerror {lastErr} from source file '{source}' to '{destination}'");
+                    string additionalMessage = string.Empty;
+                    if (lastErr == NativeMethods.ERROR_BLOCK_TOO_MANY_REFERENCES)
+                    {
+                        additionalMessage =
+                            " This is ERROR_BLOCK_TOO_MANY_REFERENCES and may mean you have surpassed the maximum " +
+                            $"allowed {MaxClones} references for a single file. " +
+                            "See https://docs.microsoft.com/en-us/windows-server/storage/refs/block-cloning#functionality-restrictions-and-remarks";
+                    }
+
+                    throw new Win32Exception(lastErr, $"Failed copy-on-write cloning with winerror {lastErr} from source file '{source}' to '{destination}'.{additionalMessage}");
                 }
 
                 sourceOffset += thisChunkSize;
@@ -337,6 +350,9 @@ namespace Microsoft.CopyOnWrite
             public const uint FSCTL_GET_INTEGRITY_INFORMATION = 0x00090000 | (0x0 << 14) | (159 << 2);
             public const uint FSCTL_SET_INTEGRITY_INFORMATION = 0x00090000 | (0x3 << 14) | (160 << 2);
             public const uint FSCTL_SET_SPARSE                = 0x00090000 | (0x0 << 14) | (49 << 2);
+
+            // ReFS specific WinError codes.
+            public const int ERROR_BLOCK_TOO_MANY_REFERENCES = 347;
 
             public static readonly int SizeOfDuplicateExtentsData = Marshal.SizeOf(typeof(DUPLICATE_EXTENTS_DATA));
 

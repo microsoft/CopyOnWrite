@@ -7,6 +7,8 @@ namespace Microsoft.CopyOnWrite
 {
     internal class LinuxCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     {
+        public int MaxClones => int.MaxValue;
+
         public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination)
         {
             // TODO: Implement FS probing and return a real value.

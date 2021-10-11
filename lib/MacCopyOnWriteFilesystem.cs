@@ -7,6 +7,8 @@ namespace Microsoft.CopyOnWrite
 {
     internal class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     {
+        public int MaxClones => int.MaxValue;
+
         public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination)
         {
             // AppleFS always supports CoW.

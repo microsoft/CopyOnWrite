@@ -24,6 +24,12 @@ namespace Microsoft.CopyOnWrite
     public interface ICopyOnWriteFilesystem
     {
         /// <summary>
+        /// Provides a filesystem-specific maximum limit on the number of copy-on-write links allowed.
+        /// When Int.MaxValue there is no limit.
+        /// </summary>
+        int MaxClones { get; }
+
+        /// <summary>
         /// Determines whether a copy-on-write link can be created between the
         /// provided paths.
         /// </summary>
