@@ -1,0 +1,31 @@
+﻿<Project>
+
+  <PropertyGroup>
+    <RootNamespace>Microsoft.CopyOnWrite.Tests</RootNamespace>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.11.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="2.2.7" />
+    <PackageReference Include="MSTest.TestFramework" Version="2.2.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../lib/CopyOnWrite.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="../CreateReFSVhd.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="../RemoveVhd.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

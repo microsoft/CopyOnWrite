@@ -65,6 +65,7 @@ namespace Microsoft.CopyOnWrite.Tests
         }
 
         [TestMethod]
+        [TestCategory("Admin")]
         public void ReFSPositiveDetectionAndCloneFileCorrectBehavior()
         {
             var driveLetterHashSet = new HashSet<char>();

@@ -191,7 +191,7 @@ namespace Microsoft.CopyOnWrite
                 bool ioctlResult = NativeMethods.DeviceIoControl(
                     destStream.SafeFileHandle!,
                     NativeMethods.FSCTL_DUPLICATE_EXTENTS_TO_FILE,
-                    duplicateExtentsData,
+                    ref duplicateExtentsData,
                     NativeMethods.SizeOfDuplicateExtentsData,
                     outBuffer: null,
                     nOutBufferSize: 0,
@@ -295,9 +295,9 @@ namespace Microsoft.CopyOnWrite
             public static extern bool DeviceIoControl(
                 SafeHandle hDevice,
                 uint dwIoControlCode,
-                [In] object? InBuffer,
+                [MarshalAs(UnmanagedType.AsAny)] [In] object? InBuffer,
                 int nInBufferSize,
-                [Out] object? outBuffer,
+                [MarshalAs(UnmanagedType.AsAny)] [Out] object? outBuffer,
                 int nOutBufferSize,
                 ref int pBytesReturned,
                 [In] IntPtr lpOverlapped);
@@ -307,9 +307,9 @@ namespace Microsoft.CopyOnWrite
             public static extern bool DeviceIoControl(
                 SafeHandle hDevice,
                 uint dwIoControlCode,
-                [In] DUPLICATE_EXTENTS_DATA InBuffer,
+                [In] ref DUPLICATE_EXTENTS_DATA InBuffer,
                 int nInBufferSize,
-                [Out] object? outBuffer,
+                [MarshalAs(UnmanagedType.AsAny)] [Out] object? outBuffer,
                 int nOutBufferSize,
                 ref int pBytesReturned,
                 [In] IntPtr lpOverlapped);
@@ -357,7 +357,7 @@ namespace Microsoft.CopyOnWrite
             public static readonly int SizeOfDuplicateExtentsData = Marshal.SizeOf(typeof(DUPLICATE_EXTENTS_DATA));
 
             [StructLayout(LayoutKind.Sequential)]
-            public class DUPLICATE_EXTENTS_DATA
+            public struct DUPLICATE_EXTENTS_DATA
             {
                 public SafeHandle? FileHandle;
                 public long SourceFileOffset;

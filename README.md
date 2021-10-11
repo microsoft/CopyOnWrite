@@ -9,7 +9,7 @@ This library allows a .NET developer to:
 * Create CoW links.
 * Find filesystem CoW link limits.
 
-Discovery is important, as different operating systems and different filesystems available for those operating systems provide varying levels of CoW link suppport:
+Discovery is important, as different operating systems and different filesystems available for those operating systems provide varying levels of CoW link support:
 
 * Windows: The default NTFS filesystem does NOT support CoW, but the ReFS filesystem does.
 * Linux: Btrfs, Xfs, Zfs support CoW while ext4 does not.
