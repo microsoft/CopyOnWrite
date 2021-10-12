@@ -11,8 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\lib\CopyOnWrite.csproj" />
-    <ProjectReference Include="..\TestUtilities\TestUtilities.csproj" />
+    <ProjectReference Include="..\..\lib\CopyOnWrite.csproj" />
+    <ProjectReference Include="..\utils\TestUtilities.csproj" />
   </ItemGroup>
 
 </Project>
