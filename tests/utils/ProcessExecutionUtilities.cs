@@ -5,9 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Text;
 
-#nullable enable
-
-namespace Microsoft.CopyOnWrite.Tests
+namespace Microsoft.CopyOnWrite.TestUtilities
 {
     /// <summary>
     /// Shared process execution methods used by client and agent.

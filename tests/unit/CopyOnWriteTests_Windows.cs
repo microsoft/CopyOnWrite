@@ -2,10 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.CopyOnWrite.TestUtilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.CopyOnWrite.Tests
@@ -68,126 +67,89 @@ namespace Microsoft.CopyOnWrite.Tests
         [TestCategory("Admin")]
         public void ReFSPositiveDetectionAndCloneFileCorrectBehavior()
         {
-            var driveLetterHashSet = new HashSet<char>();
-            foreach (DriveInfo driveInfo in DriveInfo.GetDrives())
+            using WindowsReFsVhdSession refs = WindowsReFsVhdSession.Create();
+
+            var cow = new WindowsCopyOnWriteFilesystem();
+            string refsDriveRoot = refs.ReFsDriveRoot;
+
+            Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(refsDriveRoot));
+
+            string source1Path = Path.Combine(refsDriveRoot, "source1");
+            File.WriteAllText(source1Path, "AABBCCDD");
+            string dest1Path = Path.Combine(refsDriveRoot, "dest1");
+
+            Assert.IsTrue(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path, dest1Path));
+
+            string differentVolumePath = Path.Combine(Environment.CurrentDirectory, "file000");
+            Assert.IsFalse(cow.CopyOnWriteLinkSupportedBetweenPaths(differentVolumePath, dest1Path), "Cross-volume CoW should not be allowed");
+            Assert.IsFalse(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path, differentVolumePath), "Cross-volume CoW should not be allowed");
+
+            cow.CloneFile(source1Path, dest1Path);
+            Assert.IsTrue(File.Exists(dest1Path));
+            var source1FI = new FileInfo(source1Path);
+            var dest1FI = new FileInfo(dest1Path);
+            Assert.AreEqual(source1FI.Length, dest1FI.Length);
+            string dest1Contents = File.ReadAllText(dest1Path);
+            Assert.AreEqual("AABBCCDD", dest1Contents);
+
+            // Clone a clone.
+            string dest2Path = Path.Combine(refsDriveRoot, "dest2");
+            cow.CloneFile(dest1Path, dest2Path);
+            Assert.IsTrue(File.Exists(dest2Path));
+            var dest2FI = new FileInfo(dest2Path);
+            Assert.AreEqual(source1FI.Length, dest2FI.Length);
+            string dest2Contents = File.ReadAllText(dest2Path);
+            Assert.AreEqual("AABBCCDD", dest2Contents);
+
+            // TODO: Clone a hardlink and symlink.
+
+            // Delete original file, ensure clones remain materialized.
+            File.Delete(source1Path);
+            Assert.IsTrue(File.Exists(dest1Path));
+            Assert.IsTrue(File.Exists(dest2Path));
+            dest1Contents = File.ReadAllText(dest1Path);
+            Assert.AreEqual("AABBCCDD", dest1Contents);
+            dest2Contents = File.ReadAllText(dest2Path);
+            Assert.AreEqual("AABBCCDD", dest2Contents);
+
+            // Create and clone a large file onto previously created clones.
+            string largeSourcePath = Path.Combine(refsDriveRoot, "largeFile");
+            const long largeSourceSize = WindowsCopyOnWriteFilesystem.MaxChunkSize + 1024L;  // A bit above limit to force multiple chunk copies.
+            Console.WriteLine($"Creating file with size {largeSourceSize}");
+            using (FileStream s = File.OpenWrite(largeSourcePath))
             {
-                driveLetterHashSet.Add(char.ToUpper(driveInfo.Name[0]));
+                s.SetLength(largeSourceSize);
+                s.Write(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+                s.Seek(largeSourceSize - 4, SeekOrigin.Begin);
+                s.Write(new byte[] { 0xAA, 0xBB, 0xCC, 0xDD});
             }
 
-            bool openDriveLetterFound = false;
-            char openDriveLetter = 'B';
-            for (; openDriveLetter <= 'Z'; openDriveLetter++)
+            cow.CloneFile(largeSourcePath, dest1Path);
+            Assert.IsTrue(File.Exists(dest1Path));
+            dest1FI = new FileInfo(dest1Path);
+            Assert.AreEqual(largeSourceSize, dest1FI.Length);
+            using (FileStream s = File.OpenRead(dest1Path))
             {
-                if (driveLetterHashSet.Contains(openDriveLetter))
-                {
-                    continue;
-                }
+                var buffer = new byte[4];
+                s.Read(buffer, 0, buffer.Length);
+                Assert.AreEqual(0x01, buffer[0]);
+                Assert.AreEqual(0x02, buffer[1]);
+                Assert.AreEqual(0x03, buffer[2]);
+                Assert.AreEqual(0x04, buffer[3]);
 
-                openDriveLetterFound = true;
-                break;
-            }
+                s.Seek(largeSourceSize - 4, SeekOrigin.Begin);
+                s.Read(buffer, 0, buffer.Length);
+                Assert.AreEqual(0xAA, buffer[0]);
+                Assert.AreEqual(0xBB, buffer[1]);
+                Assert.AreEqual(0xCC, buffer[2]);
+                Assert.AreEqual(0xDD, buffer[3]);
 
-            if (!openDriveLetterFound)
-            {
-                Assert.Fail("No open drive letters found to use for mounting a ReFS VHD");
-                return;
-            }
-
-            string assemblyDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty;
-            string createVhdScriptPath = Path.Combine(assemblyDirectory, "CreateReFSVhd.ps1");
-            Assert.IsTrue(File.Exists(createVhdScriptPath));
-            string removeVhdScriptPath = Path.Combine(assemblyDirectory, "RemoveVhd.ps1");
-            Assert.IsTrue(File.Exists(removeVhdScriptPath));
-
-            RunPowershellScript(createVhdScriptPath, $"{openDriveLetter}");
-            try
-            {
-                var cow = new WindowsCopyOnWriteFilesystem();
-                string refsDriveRoot = $@"{openDriveLetter}:\";
-
-                Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(refsDriveRoot));
-
-                string source1Path = Path.Combine(refsDriveRoot, "source1");
-                File.WriteAllText(source1Path, "AABBCCDD");
-                string dest1Path = Path.Combine(refsDriveRoot, "dest1");
-
-                Assert.IsTrue(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path, dest1Path));
-
-                string differentVolumePath = Path.Combine(Environment.CurrentDirectory, "file000");
-                Assert.IsFalse(cow.CopyOnWriteLinkSupportedBetweenPaths(differentVolumePath, dest1Path), "Cross-volume CoW should not be allowed");
-                Assert.IsFalse(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path, differentVolumePath), "Cross-volume CoW should not be allowed");
-
-                cow.CloneFile(source1Path, dest1Path);
-                Assert.IsTrue(File.Exists(dest1Path));
-                var source1FI = new FileInfo(source1Path);
-                var dest1FI = new FileInfo(dest1Path);
-                Assert.AreEqual(source1FI.Length, dest1FI.Length);
-                string dest1Contents = File.ReadAllText(dest1Path);
-                Assert.AreEqual("AABBCCDD", dest1Contents);
-
-                // Clone a clone.
-                string dest2Path = Path.Combine(refsDriveRoot, "dest2");
-                cow.CloneFile(dest1Path, dest2Path);
-                Assert.IsTrue(File.Exists(dest2Path));
-                var dest2FI = new FileInfo(dest2Path);
-                Assert.AreEqual(source1FI.Length, dest2FI.Length);
-                string dest2Contents = File.ReadAllText(dest2Path);
-                Assert.AreEqual("AABBCCDD", dest2Contents);
-
-                // TODO: Clone a hardlink and symlink.
-
-                // Delete original file, ensure clones remain materialized.
-                File.Delete(source1Path);
-                Assert.IsTrue(File.Exists(dest1Path));
-                Assert.IsTrue(File.Exists(dest2Path));
-                dest1Contents = File.ReadAllText(dest1Path);
-                Assert.AreEqual("AABBCCDD", dest1Contents);
-                dest2Contents = File.ReadAllText(dest2Path);
-                Assert.AreEqual("AABBCCDD", dest2Contents);
-
-                // Create and clone a large file onto previously created clones.
-                string largeSourcePath = Path.Combine(refsDriveRoot, "largeFile");
-                const long largeSourceSize = WindowsCopyOnWriteFilesystem.MaxChunkSize + 1024L;  // A bit above limit to force multiple chunk copies.
-                Console.WriteLine($"Creating file with size {largeSourceSize}");
-                using (FileStream s = File.OpenWrite(largeSourcePath))
-                {
-                    s.SetLength(largeSourceSize);
-                    s.Write(new byte[] { 0x01, 0x02, 0x03, 0x04 });
-                    s.Seek(largeSourceSize - 4, SeekOrigin.Begin);
-                    s.Write(new byte[] { 0xAA, 0xBB, 0xCC, 0xDD});
-                }
-
-                cow.CloneFile(largeSourcePath, dest1Path);
-                Assert.IsTrue(File.Exists(dest1Path));
-                dest1FI = new FileInfo(dest1Path);
-                Assert.AreEqual(largeSourceSize, dest1FI.Length);
-                using (FileStream s = File.OpenRead(dest1Path))
-                {
-                    var buffer = new byte[4];
-                    s.Read(buffer, 0, buffer.Length);
-                    Assert.AreEqual(0x01, buffer[0]);
-                    Assert.AreEqual(0x02, buffer[1]);
-                    Assert.AreEqual(0x03, buffer[2]);
-                    Assert.AreEqual(0x04, buffer[3]);
-
-                    s.Seek(largeSourceSize - 4, SeekOrigin.Begin);
-                    s.Read(buffer, 0, buffer.Length);
-                    Assert.AreEqual(0xAA, buffer[0]);
-                    Assert.AreEqual(0xBB, buffer[1]);
-                    Assert.AreEqual(0xCC, buffer[2]);
-                    Assert.AreEqual(0xDD, buffer[3]);
-
-                    // Other tests.
-                    CloneFileDestinationIsDir(refsDriveRoot);
-                    CloneFileMissingSourceDir(refsDriveRoot);
-                    CloneFileMissingSourceFileInExistingDir(refsDriveRoot);
-                    CloneFileSourceIsDir(refsDriveRoot);
-                    StressTestCloning(refsDriveRoot);
-                }
-            }
-            finally
-            {
-                RunPowershellScript(removeVhdScriptPath, $"{openDriveLetter}");
+                // Other tests.
+                CloneFileDestinationIsDir(refsDriveRoot);
+                CloneFileMissingSourceDir(refsDriveRoot);
+                CloneFileMissingSourceFileInExistingDir(refsDriveRoot);
+                CloneFileSourceIsDir(refsDriveRoot);
+                StressTestCloning(refsDriveRoot);
             }
         }
 
@@ -260,11 +222,6 @@ namespace Microsoft.CopyOnWrite.Tests
                     Assert.AreEqual("1234abcd", File.ReadAllText(testPath), testPath);
                 });
             }
-        }
-
-        private static void RunPowershellScript(string scriptPath, string args)
-        {
-            ProcessExecutionUtilities.RunAndCaptureOutput("powershell", $"-ExecutionPolicy Bypass {scriptPath} {args}");
         }
     }
 }

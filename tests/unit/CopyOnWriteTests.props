@@ -17,15 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../lib/CopyOnWrite.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="../CreateReFSVhd.ps1">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="../RemoveVhd.ps1">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <ProjectReference Include="../../TestUtilities/TestUtilities.csproj" />
   </ItemGroup>
 
 </Project>

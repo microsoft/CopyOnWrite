@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using System.Threading;
 
-namespace Microsoft.CopyOnWrite.Tests
+namespace Microsoft.CopyOnWrite.TestUtilities
 {
     /// <summary>
     /// Helper class that deletes the temp directory on dispose.

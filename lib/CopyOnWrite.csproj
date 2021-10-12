@@ -4,11 +4,6 @@
     <RootNamespace>Microsoft.CopyOnWrite</RootNamespace>
     <TargetFramework>netstandard2.0</TargetFramework>
 
-    <Nullable>enable</Nullable>
-
-    <!-- Use embedded PDB mode to improve diagnosing and debugging experience. -->
-    <DebugType>embedded</DebugType>
-
     <DistribDir>$(DistribRoot)Package\</DistribDir>
   </PropertyGroup>
 
