@@ -110,14 +110,18 @@ namespace Microsoft.CopyOnWrite
             if (sourceFileHandle.IsInvalid)
             {
                 int lastErr = Marshal.GetLastWin32Error();
-                throw new Win32Exception(lastErr,
+                if (lastErr == NativeMethods.ERROR_PATH_NOT_FOUND && Directory.Exists(resolvedSource))
+                {
+                    lastErr = NativeMethods.ERROR_INVALID_HANDLE;
+                }
+                ThrowSpecificIoException(lastErr,
                     $"Failed to open file with winerror {lastErr} for source file '{resolvedSource}'");
             }
 
             if (!NativeMethods.GetFileSizeEx(sourceFileHandle, out long sourceFileLength))
             {
                 int lastErr = Marshal.GetLastWin32Error();
-                throw new Win32Exception(lastErr,
+                ThrowSpecificIoException(lastErr,
                     $"Failed to get file size with winerror {lastErr} for source file '{resolvedSource}'");
             }
 
@@ -142,7 +146,7 @@ namespace Microsoft.CopyOnWrite
                     IntPtr.Zero))
                 {
                     int lastErr = Marshal.GetLastWin32Error();
-                    throw new Win32Exception(lastErr,
+                    ThrowSpecificIoException(lastErr,
                         $"Failed to set file sparseness with winerror {lastErr} for destination file '{destination}'");
                 }
             }
@@ -161,7 +165,7 @@ namespace Microsoft.CopyOnWrite
                 IntPtr.Zero))
             {
                 int lastErr = Marshal.GetLastWin32Error();
-                throw new Win32Exception(lastErr,
+                ThrowSpecificIoException(lastErr,
                     $"Failed to get integrity information with winerror {lastErr} from source file '{source}'");
             }
 
@@ -184,7 +188,7 @@ namespace Microsoft.CopyOnWrite
                     IntPtr.Zero))
                 {
                     int lastErr = Marshal.GetLastWin32Error();
-                    throw new Win32Exception(lastErr,
+                    ThrowSpecificIoException(lastErr,
                         $"Failed to set integrity information with winerror {lastErr} on destination file '{destination}'");
                 }
             }
@@ -194,14 +198,14 @@ namespace Microsoft.CopyOnWrite
                 0 /*FILE_BEGIN*/))
             {
                 int lastErr = Marshal.GetLastWin32Error();
-                throw new Win32Exception(lastErr,
+                ThrowSpecificIoException(lastErr,
                     $"Failed to set file pointer with winerror {lastErr} on destination file '{destination}'");
             }
 
             if (!NativeMethods.SetEndOfFile(destFileHandle))
             {
                 int lastErr = Marshal.GetLastWin32Error();
-                throw new Win32Exception(lastErr,
+                ThrowSpecificIoException(lastErr,
                     $"Failed to set end of file with winerror {lastErr} on destination file '{destination}'");
             }
 
@@ -243,11 +247,26 @@ namespace Microsoft.CopyOnWrite
                             "See https://docs.microsoft.com/en-us/windows-server/storage/refs/block-cloning#functionality-restrictions-and-remarks";
                     }
 
-                    throw new Win32Exception(lastErr,
+                    ThrowSpecificIoException(lastErr,
                         $"Failed copy-on-write cloning with winerror {lastErr} from source file '{source}' to '{destination}'.{additionalMessage}");
                 }
 
                 sourceOffset += thisChunkSize;
+            }
+        }
+
+        private static void ThrowSpecificIoException(int lastErr, string message)
+        {
+            switch (lastErr)
+            {
+                case NativeMethods.ERROR_FILE_NOT_FOUND:
+                    throw new FileNotFoundException(message);
+                case NativeMethods.ERROR_PATH_NOT_FOUND:
+                    throw new DirectoryNotFoundException(message);
+                case NativeMethods.ERROR_INVALID_HANDLE:
+                    throw new UnauthorizedAccessException(message);
+                default:
+                    throw new Win32Exception(lastErr, message);
             }
         }
 
@@ -287,7 +306,8 @@ namespace Microsoft.CopyOnWrite
             if (!result)
             {
                 int lastErr = Marshal.GetLastWin32Error();
-                throw new Win32Exception(lastErr, $"Failed retrieving drive volume information for {driveRootPath} with winerror {lastErr}");
+                ThrowSpecificIoException(lastErr,
+                    $"Failed retrieving drive volume information for {driveRootPath} with winerror {lastErr}");
             }
 
             result = NativeMethods.GetDiskFreeSpace(
@@ -299,7 +319,8 @@ namespace Microsoft.CopyOnWrite
             if (!result)
             {
                 int lastErr = Marshal.GetLastWin32Error();
-                throw new Win32Exception(lastErr, $"Failed retrieving drive volume cluster layout information for {driveRootPath} with winerror {lastErr}");
+                ThrowSpecificIoException(lastErr,
+                    $"Failed retrieving drive volume cluster layout information for {driveRootPath} with winerror {lastErr}");
             }
 
             return new DriveVolumeInfo(
@@ -408,6 +429,10 @@ namespace Microsoft.CopyOnWrite
             public const uint FSCTL_GET_INTEGRITY_INFORMATION = 0x00090000 | (0x0 << 14) | (159 << 2);
             public const uint FSCTL_SET_INTEGRITY_INFORMATION = 0x00090000 | (0x3 << 14) | (160 << 2);
             public const uint FSCTL_SET_SPARSE                = 0x00090000 | (0x0 << 14) | (49 << 2);
+
+            public const int ERROR_FILE_NOT_FOUND = 2;
+            public const int ERROR_PATH_NOT_FOUND = 3;
+            public const int ERROR_INVALID_HANDLE = 6;
 
             // ReFS specific WinError codes.
             public const int ERROR_BLOCK_TOO_MANY_REFERENCES = 347;

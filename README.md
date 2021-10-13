@@ -32,6 +32,7 @@ if (canCloneInCurrentDirectory)
 
 
 ## Release History
+* 0.1.3 October 2021: Bug fixes for Windows. Mac and Linux throw NotSupportedException.
 * 0.1.2 October 2021: Performance fixes for Windows. Mac and Linux throw NotSupportedException.
 * 0.1.1 October 2021: Bug fixes for Windows. Mac and Linux throw NotSupportedException.
 * 0.1.0 July 2021: Windows ReFS support. Mac and Linux throw NotSupportedException.
