@@ -11,8 +11,11 @@ namespace Microsoft.CopyOnWrite.Benchmarking
 {
     public class CoWComparisons
     {
+        // Do more work per round to meet minimum BenchmarkDotNet times.
+        private const int CopiesPerJob = 25;
+
         // Static to avoid multiple drives being created during benchmark and to allow control
-        // of call to Dispose() (see BenchmarkProgram).
+        // of call to Dispose().
         public static WindowsReFsVhdSession? ReFsVhdSession;
 
         public long[] FileSizesBytes { get; } =
@@ -25,6 +28,19 @@ namespace Microsoft.CopyOnWrite.Benchmarking
             1024 * 1024,
             16 * 1024 * 1024,
         };
+
+        private static string[] FileNames = CreateFileNames();
+
+        private static string[] CreateFileNames()
+        {
+            var names = new string[CopiesPerJob];
+            for (int i = 0; i < CopiesPerJob; i++)
+            {
+                names[i] = $"dest{i}";
+            }
+
+            return names;
+        }
         
         private readonly ICopyOnWriteFilesystem _cow = CopyOnWriteFilesystemFactory.GetInstance();
         private string? _testOutputDir;
@@ -66,24 +82,38 @@ namespace Microsoft.CopyOnWrite.Benchmarking
         [ParamsSource(nameof(FileSizesBytes))]
         public long FileSize;
 
-        [Benchmark(Baseline = true, Description = "Kernel copy")]
+        [IterationCleanup]
+        public void IterationCleanup()
+        {
+            string[] toDelete = Directory.GetFiles(_testOutputDir!);
+            foreach (string f in toDelete)
+            {
+                File.Delete(f);
+            }
+        }
+
+        [Benchmark(Baseline = true, Description = "File.Copy")]
+        [BenchmarkDotNet.Attributes.EvaluateOverhead(false)]
         public void CopyFileNoExistingTarget()
         {
             string sourceFilePath = _fileSizeToSourcePathMap[FileSize];
-            string targetFilePath = Path.Combine(_testOutputDir!,
-                Path.GetFileName(sourceFilePath) + "_" + Guid.NewGuid().ToString("N"));
-            File.Copy(sourceFilePath, targetFilePath);
-            File.Delete(targetFilePath);
+            for (int i = 0; i < CopiesPerJob; i++)
+            {
+                string targetFilePath = Path.Combine(_testOutputDir!, FileNames[i]);
+                File.Copy(sourceFilePath, targetFilePath);
+            }
         }
 
-        [Benchmark]
+        [Benchmark(Description = "CoW")]
+        [BenchmarkDotNet.Attributes.EvaluateOverhead(false)]  // Causes too-many-link exceptions.
         public void CowFileNoExistingTarget()
         {
             string sourceFilePath = _fileSizeToSourcePathMap[FileSize];
-            string targetFilePath = Path.Combine(_testOutputDir!,
-                Path.GetFileName(sourceFilePath) + "_" + Guid.NewGuid().ToString("N"));
-            _cow.CloneFile(sourceFilePath, targetFilePath);
-            File.Delete(targetFilePath);
+            for (int i = 0; i < CopiesPerJob; i++)
+            {
+                string targetFilePath = Path.Combine(_testOutputDir!, FileNames[i]);
+                _cow.CloneFile(sourceFilePath, targetFilePath);
+            }
         }
     }
 }

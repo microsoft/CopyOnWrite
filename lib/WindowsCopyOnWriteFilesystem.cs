@@ -3,10 +3,13 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using Microsoft.Win32.SafeHandles;
 
 namespace Microsoft.CopyOnWrite
 {
@@ -102,11 +105,25 @@ namespace Microsoft.CopyOnWrite
             }
 
             // Get an open file handle to the source file.
-            using var sourceStream = File.Open(resolvedSource, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
-            long sourceFileLength = sourceStream.Length;
+            using SafeFileHandle sourceFileHandle = NativeMethods.CreateFile(resolvedSource, FileAccess.Read,
+                FileShare.Read | FileShare.Delete, IntPtr.Zero, FileMode.Open, FileAttributes.Normal, IntPtr.Zero);
+            if (sourceFileHandle.IsInvalid)
+            {
+                int lastErr = Marshal.GetLastWin32Error();
+                throw new Win32Exception(lastErr,
+                    $"Failed to open file with winerror {lastErr} for source file '{resolvedSource}'");
+            }
+
+            if (!NativeMethods.GetFileSizeEx(sourceFileHandle, out long sourceFileLength))
+            {
+                int lastErr = Marshal.GetLastWin32Error();
+                throw new Win32Exception(lastErr,
+                    $"Failed to get file size with winerror {lastErr} for source file '{resolvedSource}'");
+            }
 
             // Create an empty destination file.
-            using var destStream = File.Create(destination);
+            using SafeFileHandle destFileHandle = NativeMethods.CreateFile(destination, FileAccess.Write,
+                FileShare.Delete, IntPtr.Zero, FileMode.Create, FileAttributes.Normal, IntPtr.Zero);
 
             // Set destination as sparse if the source is. Must be done while file is zero bytes.
             FileAttributes sourceAttr = File.GetAttributes(resolvedSource);
@@ -115,7 +132,7 @@ namespace Microsoft.CopyOnWrite
                 // Set the destination to be sparse to match the source.
                 int numBytesReturned = 0;
                 if (!NativeMethods.DeviceIoControl(
-                    destStream.SafeFileHandle!,
+                    destFileHandle,
                     NativeMethods.FSCTL_SET_SPARSE,
                     (object?)null,
                     0,
@@ -125,7 +142,8 @@ namespace Microsoft.CopyOnWrite
                     IntPtr.Zero))
                 {
                     int lastErr = Marshal.GetLastWin32Error();
-                    throw new Win32Exception(lastErr, $"Failed to set file sparseness with winerror {lastErr} for destination file '{destination}'");
+                    throw new Win32Exception(lastErr,
+                        $"Failed to set file sparseness with winerror {lastErr} for destination file '{destination}'");
                 }
             }
 
@@ -133,7 +151,7 @@ namespace Microsoft.CopyOnWrite
             int sizeReturned = 0;
             var getIntegrityInfo = new NativeMethods.FSCTL_GET_INTEGRITY_INFORMATION_BUFFER();
             if (!NativeMethods.DeviceIoControl(
-                sourceStream.SafeFileHandle!,
+                sourceFileHandle,
                 NativeMethods.FSCTL_GET_INTEGRITY_INFORMATION,
                 (object?)null,
                 0,
@@ -143,7 +161,8 @@ namespace Microsoft.CopyOnWrite
                 IntPtr.Zero))
             {
                 int lastErr = Marshal.GetLastWin32Error();
-                throw new Win32Exception(lastErr, $"Failed to get integrity information with winerror {lastErr} from source file '{source}'");
+                throw new Win32Exception(lastErr,
+                    $"Failed to get integrity information with winerror {lastErr} from source file '{source}'");
             }
 
             if (getIntegrityInfo.ChecksumAlgorithm != 0 || getIntegrityInfo.Flags != 0)
@@ -155,7 +174,7 @@ namespace Microsoft.CopyOnWrite
                     Reserved = getIntegrityInfo.Reserved,
                 };
                 if (!NativeMethods.DeviceIoControl(
-                    destStream.SafeFileHandle!,
+                    destFileHandle,
                     NativeMethods.FSCTL_SET_INTEGRITY_INFORMATION,
                     setIntegrityInfo,
                     NativeMethods.SizeOfSetIntegrityInformationBuffer,
@@ -165,20 +184,35 @@ namespace Microsoft.CopyOnWrite
                     IntPtr.Zero))
                 {
                     int lastErr = Marshal.GetLastWin32Error();
-                    throw new Win32Exception(lastErr, $"Failed to set integrity information with winerror {lastErr} on destination file '{destination}'");
+                    throw new Win32Exception(lastErr,
+                        $"Failed to set integrity information with winerror {lastErr} on destination file '{destination}'");
                 }
             }
 
             // Set the destination on-disk size the same as the source.
-            destStream.SetLength(sourceFileLength);
+            if (!NativeMethods.SetFilePointerEx(destFileHandle, sourceFileLength, IntPtr.Zero,
+                0 /*FILE_BEGIN*/))
+            {
+                int lastErr = Marshal.GetLastWin32Error();
+                throw new Win32Exception(lastErr,
+                    $"Failed to set file pointer with winerror {lastErr} on destination file '{destination}'");
+            }
+
+            if (!NativeMethods.SetEndOfFile(destFileHandle))
+            {
+                int lastErr = Marshal.GetLastWin32Error();
+                throw new Win32Exception(lastErr,
+                    $"Failed to set end of file with winerror {lastErr} on destination file '{destination}'");
+            }
 
             var duplicateExtentsData = new NativeMethods.DUPLICATE_EXTENTS_DATA
             {
-                FileHandle = sourceStream.SafeFileHandle,
+                FileHandle = sourceFileHandle,
             };
 
             // ReFS requires that cloned regions reside on a disk cluster boundary.
-            long fileSizeRoundedUpToClusterBoundary = RoundUpToPowerOf2(sourceFileLength, driveInfo.ClusterSize);
+            long fileSizeRoundedUpToClusterBoundary =
+                RoundUpToPowerOf2(sourceFileLength, driveInfo.ClusterSize);
             long sourceOffset = 0;
             while (sourceOffset < sourceFileLength)
             {
@@ -189,7 +223,7 @@ namespace Microsoft.CopyOnWrite
 
                 int numBytesReturned = 0;
                 bool ioctlResult = NativeMethods.DeviceIoControl(
-                    destStream.SafeFileHandle!,
+                    destFileHandle,
                     NativeMethods.FSCTL_DUPLICATE_EXTENTS_TO_FILE,
                     ref duplicateExtentsData,
                     NativeMethods.SizeOfDuplicateExtentsData,
@@ -209,7 +243,8 @@ namespace Microsoft.CopyOnWrite
                             "See https://docs.microsoft.com/en-us/windows-server/storage/refs/block-cloning#functionality-restrictions-and-remarks";
                     }
 
-                    throw new Win32Exception(lastErr, $"Failed copy-on-write cloning with winerror {lastErr} from source file '{source}' to '{destination}'.{additionalMessage}");
+                    throw new Win32Exception(lastErr,
+                        $"Failed copy-on-write cloning with winerror {lastErr} from source file '{source}' to '{destination}'.{additionalMessage}");
                 }
 
                 sourceOffset += thisChunkSize;
@@ -218,7 +253,7 @@ namespace Microsoft.CopyOnWrite
 
         private DriveVolumeInfo GetOrUpdateDriveVolumeInfo(char driveLetter)
         {
-            return _driveLetterToInfoMap.GetOrAdd(driveLetter, GetDriveVolumeInfo);
+            return _driveLetterToInfoMap.GetOrAdd(driveLetter, d => GetDriveVolumeInfo(d));
         }
 
         internal static long RoundUpToPowerOf2(long originalValue, long roundingMultiplePowerOf2)
@@ -290,6 +325,29 @@ namespace Microsoft.CopyOnWrite
         // ReSharper disable NotAccessedField.Local
         private static class NativeMethods
         {
+            [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+            public static extern SafeFileHandle CreateFile(
+                string lpFileName,
+                [MarshalAs(UnmanagedType.U4)] FileAccess dwDesiredAccess,
+                [MarshalAs(UnmanagedType.U4)] FileShare dwShareMode,
+                IntPtr lpSecurityAttributes,
+                [MarshalAs(UnmanagedType.U4)] FileMode dwCreationDisposition,
+                [MarshalAs(UnmanagedType.U4)] FileAttributes dwFlagsAndAttributes,
+                IntPtr hTemplateFile);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool GetFileSizeEx(SafeFileHandle hFile, out long lpFileSize);
+
+            [DllImport("Kernel32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool SetFilePointerEx(SafeFileHandle hFile, long liDistanceToMove,
+                IntPtr lpNewFilePointer, uint dwMoveMethod);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool SetEndOfFile(SafeFileHandle hFile);
+
             [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
             [return: MarshalAs(UnmanagedType.Bool)]
             public static extern bool DeviceIoControl(
