@@ -8,8 +8,12 @@
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DocumentationFile>bin\Release\Microsoft.CopyOnWrite.xml</DocumentationFile>
+    <DocumentationFile>bin\Release\CopyOnWrite.xml</DocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
 
   <PropertyGroup>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -24,8 +28,8 @@
     </PackageDescription>
     <PackageTags>CoW copy-on-write copy write clone file reflink clonefile ficlone ReFS Windows Mac macOS Linux</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.xml</AllowedOutputExtensionsInPackageBuildOutputFolder>
-
   </PropertyGroup>
 
 </Project>
