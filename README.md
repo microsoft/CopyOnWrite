@@ -41,7 +41,7 @@ if (canCloneInCurrentDirectory)
 ## Performance Comparisons
 
 ### Windows
-Generally, CoW links on ReFS save time over file copies except at file size zero. The savings is proportional to the file size, with 16MB files at about 35X performance, 1MB at 3.2X, and small sizes at about 1.3X.
+CoW links on ReFS take approximately constant time, saving time over file copies except at file size zero. The savings is proportional to the file size, with 16MB files at about 35X performance, 1MB at 3.2X, and small sizes at about 1.3X.
 
 Detailed numbers for a VHD formatted empty with ReFS for each iteration, comparing `System.IO.File.Copy()` with `CloneFile()`, 25 copies/clones of a single source file per measurement. See CoWComparisons.cs. Machine was an 8/16-core M.2 SSD, Win10 21H1 Enterprise.
 
