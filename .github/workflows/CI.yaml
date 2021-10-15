@@ -16,8 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Enable Hyper-V for ReFS VHD testing
-        run: Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
-        shell: pwsh
+        run: DISM /Online /Enable-Feature /All /FeatureName:Microsoft-Hyper-V
+        shell: cmd
+        #run: Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
+        #shell: pwsh
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v1
         # No "with: dotnet-version" specified -> use global.json
