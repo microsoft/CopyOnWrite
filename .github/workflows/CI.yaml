@@ -15,6 +15,9 @@ jobs:
     runs-on: windows-2022  # 2019 is not sufficient, Windows 21H1+ is best for ReFS bug fixes
     steps:
       - uses: actions/checkout@v2
+      - name: Enable Hyper-V for ReFS VHD testing
+        run: Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
+        shell: pwsh
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v1
         # No "with: dotnet-version" specified -> use global.json
