@@ -20,12 +20,12 @@ jobs:
         # No "with: dotnet-version" specified -> use global.json
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
-      - name: See if VM reboot can work in CI pipeline
-        run: shutdown -r -t 0
+      - name: Enable Hyper-V for ReFS VHD testing
+        # Hyper-V install wants to restart and pauses console, disable that.
+        run: DISM /Online /Enable-Feature /All /FeatureName:Microsoft-Hyper-V /NoRestart
         shell: cmd
-      # Broken - installs Hyper-V but pauses at console waiting for a reboot.
-      #- name: Enable Hyper-V for ReFS VHD testing
-      #  run: DISM /Online /Enable-Feature /All /FeatureName:Microsoft-Hyper-V
+      #- name: See if VM reboot can work in CI pipeline
+      #  run: shutdown -r -t 0
       #  shell: cmd
       # Broken - null object exception from Powershell
       #- name: Enable Hyper-V for ReFS VHD testing
