@@ -15,14 +15,20 @@ jobs:
     runs-on: windows-2022  # 2019 is not sufficient, Windows 21H1+ is best for ReFS bug fixes
     steps:
       - uses: actions/checkout@v2
-      - name: Enable Hyper-V for ReFS VHD testing
-        run: DISM /Online /Enable-Feature /All /FeatureName:Microsoft-Hyper-V
-        shell: cmd
-        #run: Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
-        #shell: pwsh
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v1
         # No "with: dotnet-version" specified -> use global.json
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
+      - name: See if VM reboot can work in CI pipeline
+        run: shutdown -r -t 0
+        shell: cmd
+      # Broken - installs Hyper-V but pauses at console waiting for a reboot.
+      #- name: Enable Hyper-V for ReFS VHD testing
+      #  run: DISM /Online /Enable-Feature /All /FeatureName:Microsoft-Hyper-V
+      #  shell: cmd
+      # Broken - null object exception from Powershell
+      #- name: Enable Hyper-V for ReFS VHD testing
+      #  run: Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
+      #  shell: pwsh
       - run: dotnet test --no-restore
