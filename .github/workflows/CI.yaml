@@ -17,8 +17,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v1
-        with:
-          # No dotnet-version specified -> use global.json
+        # No "with: dotnet-version" specified -> use global.json
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
       - run: dotnet test --no-restore
