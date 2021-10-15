@@ -12,7 +12,7 @@ namespace Microsoft.CopyOnWrite.Tests
     // E.g. dotnet test --filter TestCategory=Windows
     [TestClass]
     [TestCategory("Windows")]
-    public class CopyOnWriteTests_Windows
+    public sealed class CopyOnWriteTests_Windows
     {
         [TestMethod]
         public void NtfsNegativeDetectionAndFailureToCopyExtents()
@@ -149,6 +149,7 @@ namespace Microsoft.CopyOnWrite.Tests
                 CloneFileMissingSourceDir(refsDriveRoot);
                 CloneFileMissingSourceFileInExistingDir(refsDriveRoot);
                 CloneFileSourceIsDir(refsDriveRoot);
+                CloneFileExceedReFsLimit(refsDriveRoot);
                 StressTestCloning(refsDriveRoot);
             }
         }
@@ -203,6 +204,22 @@ namespace Microsoft.CopyOnWrite.Tests
             Assert.ThrowsException<UnauthorizedAccessException>(() => cow.CloneFile(sourceFilePath, refsRoot));
         }
 
+        private static void CloneFileExceedReFsLimit(string refsRoot)
+        {
+            string testSubDir = Path.Combine(refsRoot, nameof(CloneFileExceedReFsLimit));
+            Directory.CreateDirectory(testSubDir);
+            string sourceFilePath = Path.Combine(testSubDir, "source");
+            File.WriteAllText(sourceFilePath, "ABC");
+            ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
+            for (int i = 0; i < cow.MaxClones; i++)
+            {
+                // Up to limit expected to succeed.
+                cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{i}"));
+            }
+
+            Assert.ThrowsException<MaxCloneFileLinksExceededException>(() => cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{cow.MaxClones}")));
+        }
+
         private static void StressTestCloning(string refsRoot)
         {
             ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
@@ -214,9 +231,9 @@ namespace Microsoft.CopyOnWrite.Tests
                 string origFilePath = Path.Combine(stressFolder, "orig");
                 File.WriteAllText(origFilePath, "1234abcd");
 
+                Console.WriteLine($"Running parallel stress test for {cow.MaxClones} CoW links");
                 Parallel.For(0, cow.MaxClones, i =>
                 {
-                    Console.WriteLine($"Running parallel stress test for {cow.MaxClones} CoW links");
                     string testPath = Path.Combine(stressFolder, $"test{i}");
                     cow.CloneFile(origFilePath, testPath);
                     Assert.AreEqual("1234abcd", File.ReadAllText(testPath), testPath);

@@ -5,7 +5,7 @@ using System;
 
 namespace Microsoft.CopyOnWrite
 {
-    internal class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
+    internal sealed class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     {
         public int MaxClones => int.MaxValue;
 

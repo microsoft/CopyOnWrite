@@ -6,7 +6,7 @@ using BenchmarkDotNet.Running;
 
 namespace Microsoft.CopyOnWrite.Benchmarking
 {
-    public class BenchmarkProgram
+    public sealed class BenchmarkProgram
     {
         static void Main(string[] args)
         {

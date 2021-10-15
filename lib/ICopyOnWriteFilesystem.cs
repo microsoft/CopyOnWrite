@@ -62,6 +62,9 @@ namespace Microsoft.CopyOnWrite
         /// and the parent directory must exist before this call.
         /// </param>
         /// <exception cref="System.NotSupportedException">Copy-on-write links are not supported between source and destination.</exception>
+        /// <exception cref="MaxCloneFileLinksExceededException">
+        /// The link attempt failed because a filesystem limit was exceeded. See <see cref="MaxClones"/>.
+        /// </exception>
         void CloneFile(string source, string destination);
     }
 }

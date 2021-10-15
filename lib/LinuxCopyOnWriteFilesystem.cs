@@ -5,7 +5,7 @@ using System;
 
 namespace Microsoft.CopyOnWrite
 {
-    internal class LinuxCopyOnWriteFilesystem : ICopyOnWriteFilesystem
+    internal sealed class LinuxCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     {
         public int MaxClones => int.MaxValue;
 

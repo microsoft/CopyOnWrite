@@ -3,9 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -17,7 +15,7 @@ namespace Microsoft.CopyOnWrite
     /// Windows version. Uses an internal cache, hence assumes drive letters are non-removable or
     /// don't change filesystem formats after they are first encountered.
     /// </summary>
-    internal class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
+    internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     {
         private class DriveVolumeInfo
         {
@@ -265,6 +263,8 @@ namespace Microsoft.CopyOnWrite
                     throw new DirectoryNotFoundException(message);
                 case NativeMethods.ERROR_INVALID_HANDLE:
                     throw new UnauthorizedAccessException(message);
+                case NativeMethods.ERROR_BLOCK_TOO_MANY_REFERENCES:
+                    throw new MaxCloneFileLinksExceededException(message);
                 default:
                     throw new Win32Exception(lastErr, message);
             }
