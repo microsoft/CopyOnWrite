@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CopyOnWrite.TestUtilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -19,7 +20,8 @@ namespace Microsoft.CopyOnWrite.Tests
         {
             var cow = new WindowsCopyOnWriteFilesystem();
             bool anyNtfsFound = false;
-            foreach (DriveInfo driveInfo in DriveInfo.GetDrives())
+            foreach (DriveInfo driveInfo in DriveInfo.GetDrives()
+                .Where(di => di.IsReady))
             {
                 if (string.Equals(driveInfo.DriveFormat, "NTFS", StringComparison.OrdinalIgnoreCase))
                 {
