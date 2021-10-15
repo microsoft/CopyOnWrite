@@ -22,15 +22,10 @@ jobs:
       - run: dotnet build --configuration Release --no-restore
       - name: Enable Hyper-V for ReFS VHD testing
         # Hyper-V install wants to restart and pauses console, disable that.
+        # Attempts to test VM reboot in GitHub Actions were not fruitful.
+        # We would need Hyper-V baked into an image instead.
         run: |
           DISM /Online /Enable-Feature /All /FeatureName:Microsoft-Hyper-V /NoRestart
-          if "%ERRORLEVEL%"=="3010" echo Expected 3010 exit cod efor pending reboot && exit /b 0
+          if "%ERRORLEVEL%"=="3010" echo Expected 3010 exit code for pending reboot && exit /b 0
         shell: cmd
-      #- name: See if VM reboot can work in CI pipeline
-      #  run: shutdown -r -t 0
-      #  shell: cmd
-      # Broken - null object exception from Powershell
-      #- name: Enable Hyper-V for ReFS VHD testing
-      #  run: Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
-      #  shell: pwsh
       - run: dotnet test --no-restore
