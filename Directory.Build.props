@@ -19,7 +19,7 @@
 
   <!-- Common assembly version and other properties. Also used in package publish. -->
   <PropertyGroup>
-    <Version>0.1.4.0</Version>
+    <Version>0.1.5.0</Version>
 
     <Company>Microsoft</Company>
     <Copyright>Copyright (c) Microsoft Corporation</Copyright>
