@@ -29,7 +29,7 @@ namespace Microsoft.CopyOnWrite.Benchmarking
             16 * 1024 * 1024,
         };
 
-        private static string[] FileNames = CreateFileNames();
+        private static readonly string[] FileNames = CreateFileNames();
 
         private static string[] CreateFileNames()
         {

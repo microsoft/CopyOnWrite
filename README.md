@@ -70,5 +70,30 @@ Detailed numbers for a VHD formatted empty with ReFS for each iteration, compari
 | File.Copy | 16777216 | 252.637 ms | 2.9167 ms | 2.5855 ms | 251.895 ms |  1.00 |    0.00 |
 |       CoW | 16777216 |   7.272 ms | 0.2882 ms | 0.7987 ms |   7.136 ms |  0.03 |    0.00 |
 
+Same benchmark performed on a ReFS partition (no VHD) on an M.2 SSD:
+
+|    Method | FileSize |       Mean |     Error |    StdDev |     Median | Ratio | RatioSD |
+|---------- |--------- |-----------:|----------:|----------:|-----------:|------:|--------:|
+| File.Copy |        0 |   3.627 ms | 0.2430 ms | 0.7127 ms |   3.453 ms |  1.00 |    0.00 |
+|       CoW |        0 |   4.173 ms | 0.1934 ms | 0.5641 ms |   4.067 ms |  1.19 |    0.27 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |        1 |   6.711 ms | 0.2276 ms | 0.6567 ms |   6.652 ms |  1.00 |    0.00 |
+|       CoW |        1 |   5.597 ms | 0.1989 ms | 0.5803 ms |   5.471 ms |  0.84 |    0.12 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |     1024 |   6.476 ms | 0.2533 ms | 0.7146 ms |   6.398 ms |  1.00 |    0.00 |
+|       CoW |     1024 |   5.647 ms | 0.2135 ms | 0.6194 ms |   5.614 ms |  0.89 |    0.14 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |    16384 |   6.514 ms | 0.2421 ms | 0.6946 ms |   6.340 ms |  1.00 |    0.00 |
+|       CoW |    16384 |   5.703 ms | 0.2212 ms | 0.6453 ms |   5.636 ms |  0.88 |    0.12 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |   262144 |   9.579 ms | 0.4325 ms | 1.2751 ms |   9.421 ms |  1.00 |    0.00 |
+|       CoW |   262144 |   5.770 ms | 0.2632 ms | 0.7761 ms |   5.543 ms |  0.61 |    0.12 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |  1048576 |  20.679 ms | 0.8702 ms | 2.4966 ms |  20.426 ms |  1.00 |    0.00 |
+|       CoW |  1048576 |   6.253 ms | 0.2658 ms | 0.7628 ms |   6.152 ms |  0.31 |    0.05 |
+|           |          |            |           |           |            |       |         |
+| File.Copy | 16777216 | 240.713 ms | 4.7471 ms | 6.6547 ms | 240.357 ms |  1.00 |    0.00 |
+|       CoW | 16777216 |   7.291 ms | 0.3910 ms | 1.1217 ms |   7.070 ms |  0.03 |    0.01 |
+
 ## Contributing
 This project welcomes contributions and suggestions. See CONTRIBUTING.md.
