@@ -3,30 +3,29 @@
 
 using System;
 
-namespace Microsoft.CopyOnWrite
+namespace Microsoft.CopyOnWrite;
+
+internal sealed class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 {
-    internal sealed class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
+    public int MaxClones => int.MaxValue;
+
+    public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination)
     {
-        public int MaxClones => int.MaxValue;
+        // AppleFS always supports CoW.
+        // return true;
+        throw new NotImplementedException();
+    }
 
-        public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination)
-        {
-            // AppleFS always supports CoW.
-            // return true;
-            throw new NotImplementedException();
-        }
+    public bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory)
+    {
+        // AppleFS always supports CoW.
+        // return true;
+        throw new NotImplementedException();
+    }
 
-        public bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory)
-        {
-            // AppleFS always supports CoW.
-            // return true;
-            throw new NotImplementedException();
-        }
-
-        public void CloneFile(string source, string destination)
-        {
-            // TODO: Use clonefile().
-            throw new NotImplementedException();
-        }
+    public void CloneFile(string source, string destination)
+    {
+        // TODO: Use clonefile().
+        throw new NotImplementedException();
     }
 }

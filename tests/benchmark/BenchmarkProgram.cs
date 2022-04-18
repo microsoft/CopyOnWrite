@@ -1,16 +1,14 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
 
-namespace Microsoft.CopyOnWrite.Benchmarking
+namespace Microsoft.CopyOnWrite.Benchmarking;
+
+public sealed class BenchmarkProgram
 {
-    public sealed class BenchmarkProgram
+    static void Main(string[] args)
     {
-        static void Main(string[] args)
-        {
-            BenchmarkRunner.Run<CoWComparisons>(args: args);
-        }
+        BenchmarkRunner.Run<CoWComparisons>(args: args);
     }
 }

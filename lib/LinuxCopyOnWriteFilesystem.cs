@@ -3,27 +3,26 @@
 
 using System;
 
-namespace Microsoft.CopyOnWrite
+namespace Microsoft.CopyOnWrite;
+
+internal sealed class LinuxCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 {
-    internal sealed class LinuxCopyOnWriteFilesystem : ICopyOnWriteFilesystem
+    public int MaxClones => int.MaxValue;
+
+    public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination)
     {
-        public int MaxClones => int.MaxValue;
+        // TODO: Implement FS probing and return a real value.
+        throw new NotImplementedException();
+    }
 
-        public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination)
-        {
-            // TODO: Implement FS probing and return a real value.
-            throw new NotImplementedException();
-        }
+    public bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory)
+    {
+        throw new NotImplementedException();
+    }
 
-        public bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void CloneFile(string source, string destination)
-        {
-            // TODO: Use ficlone().
-            throw new NotImplementedException();
-        }
+    public void CloneFile(string source, string destination)
+    {
+        // TODO: Use ficlone().
+        throw new NotImplementedException();
     }
 }
