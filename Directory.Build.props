@@ -15,6 +15,9 @@
     <DebugType>embedded</DebugType>
 
     <TreatWarningsAsErrors Condition="'$(TreatWarningsAsErrors)' == ''">true</TreatWarningsAsErrors>
+
+    <!-- Reduce output dir size by avoiding satellite assembly binplace -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <!-- Common assembly version and other properties. Also used in package publish. -->
