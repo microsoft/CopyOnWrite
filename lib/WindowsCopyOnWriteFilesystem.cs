@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
@@ -32,7 +32,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     // Each cloned region must be < 4GB in length. Use a smaller default.
     internal const long MaxChunkSize = 1L << 31;  // 2GB
 
-    private readonly ConcurrentDictionary<char, DriveVolumeInfo> _driveLetterToInfoMap = new ();
+    private readonly DriveVolumeInfo?[] _driveLetterInfos = new DriveVolumeInfo?[26];
 
     // https://docs.microsoft.com/en-us/windows-server/storage/refs/block-cloning#functionality-restrictions-and-remarks
     /// <inheritdoc />
@@ -55,18 +55,31 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             return false;
         }
 
-        char sourceDriveLetter = char.ToUpper(resolvedSource[0]);
-        char destDriveLetter = char.ToUpper(resolvedDestination[0]);
-            
+        char sourceDriveLetter = resolvedSource[0];
+        int sourceDriveIndex = IndexFromDriveLetter(sourceDriveLetter);
+        int destDriveIndex = IndexFromDriveLetter(resolvedDestination[0]);
+
         // Must be on the same filesystem volume (drive letter).
         // TODO: This does not handle a subst'd drive letter pointing to the same original volume.
-        if (sourceDriveLetter != destDriveLetter)
+        if (sourceDriveIndex != destDriveIndex)
         {
             return false;
         }
 
-        DriveVolumeInfo driveInfo = GetOrUpdateDriveVolumeInfo(sourceDriveLetter);
+        DriveVolumeInfo driveInfo = GetOrUpdateDriveVolumeInfo(sourceDriveLetter, sourceDriveIndex);
         return driveInfo.SupportsCoW;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int IndexFromDriveLetter(char driveLetter)
+    {
+        int index = driveLetter - 'A';
+        if (index > 26)
+        {
+            index -= 32;  // Difference between 'A' and 'a'
+        }
+
+        return index;
     }
 
     /// <inheritdoc />
@@ -78,8 +91,9 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             return false;
         }
 
-        char sourceDriveLetter = char.ToUpper(resolvedSource[0]);
-        DriveVolumeInfo driveInfo = GetOrUpdateDriveVolumeInfo(sourceDriveLetter);
+        char sourceDriveLetter = resolvedSource[0];
+        int sourceDriveIndex = IndexFromDriveLetter(sourceDriveLetter);
+        DriveVolumeInfo driveInfo = GetOrUpdateDriveVolumeInfo(sourceDriveLetter, sourceDriveIndex);
         return driveInfo.SupportsCoW;
     }
 
@@ -95,8 +109,10 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             throw new NotSupportedException($"Source path '{source}' is not in the correct format");
         }
 
+        char sourceDriveLetter = resolvedSource[0];
+        int sourceDriveIndex = IndexFromDriveLetter(sourceDriveLetter);
         char driveLetter = char.ToUpper(resolvedSource[0]);
-        DriveVolumeInfo driveInfo = GetOrUpdateDriveVolumeInfo(driveLetter);
+        DriveVolumeInfo driveInfo = GetOrUpdateDriveVolumeInfo(sourceDriveLetter, sourceDriveIndex);
         if (!driveInfo.SupportsCoW)
         {
             throw new NotSupportedException($@"Drive volume {driveLetter}:\ does not support copy-on-write clone links, e.g. is not formatted with ReFS");
@@ -254,24 +270,28 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 
     private static void ThrowSpecificIoException(int lastErr, string message)
     {
-        switch (lastErr)
+        throw lastErr switch
         {
-            case NativeMethods.ERROR_FILE_NOT_FOUND:
-                throw new FileNotFoundException(message);
-            case NativeMethods.ERROR_PATH_NOT_FOUND:
-                throw new DirectoryNotFoundException(message);
-            case NativeMethods.ERROR_INVALID_HANDLE:
-                throw new UnauthorizedAccessException(message);
-            case NativeMethods.ERROR_BLOCK_TOO_MANY_REFERENCES:
-                throw new MaxCloneFileLinksExceededException(message);
-            default:
-                throw new Win32Exception(lastErr, message);
-        }
+            NativeMethods.ERROR_FILE_NOT_FOUND => new FileNotFoundException(message),
+            NativeMethods.ERROR_PATH_NOT_FOUND => new DirectoryNotFoundException(message),
+            NativeMethods.ERROR_INVALID_HANDLE => new UnauthorizedAccessException(message),
+            NativeMethods.ERROR_BLOCK_TOO_MANY_REFERENCES => new MaxCloneFileLinksExceededException(message),
+            _ => new Win32Exception(lastErr, message)
+        };
     }
 
-    private DriveVolumeInfo GetOrUpdateDriveVolumeInfo(char driveLetter)
+    private DriveVolumeInfo GetOrUpdateDriveVolumeInfo(char driveLetter, int driveIndex)
     {
-        return _driveLetterToInfoMap.GetOrAdd(driveLetter, d => GetDriveVolumeInfo(d));
+        DriveVolumeInfo? d = _driveLetterInfos[driveIndex];
+        if (d != null)
+        {
+            return d;
+        }
+
+        // Multiple threads can race to retrieve and set info, extras will be dropped in GC.
+        d = GetDriveVolumeInfo(driveLetter);
+        _driveLetterInfos[driveIndex] = d;
+        return d;
     }
 
     internal static long RoundUpToPowerOf2(long originalValue, long roundingMultiplePowerOf2)

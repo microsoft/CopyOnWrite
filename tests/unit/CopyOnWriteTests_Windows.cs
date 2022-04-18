@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CopyOnWrite.TestUtilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -29,8 +28,11 @@ public sealed class CopyOnWriteTests_Windows
             {
                 anyNtfsFound = true;
                 Assert.IsFalse(cow.CopyOnWriteLinkSupportedBetweenPaths(
-                    Path.Combine(driveInfo.Name, Guid.NewGuid().ToString()),
-                    Path.Combine(driveInfo.Name, Guid.NewGuid().ToString())));
+                    Path.Combine(driveInfo.Name.ToUpperInvariant(), Guid.NewGuid().ToString()),
+                    Path.Combine(driveInfo.Name.ToLowerInvariant(), Guid.NewGuid().ToString())));
+                Assert.IsFalse(cow.CopyOnWriteLinkSupportedBetweenPaths(
+                    Path.Combine(driveInfo.Name.ToLowerInvariant(), Guid.NewGuid().ToString()),
+                    Path.Combine(driveInfo.Name.ToUpperInvariant(), Guid.NewGuid().ToString())));
             }
         }
 
@@ -83,6 +85,8 @@ public sealed class CopyOnWriteTests_Windows
         string dest1Path = Path.Combine(refsDriveRoot, "dest1");
 
         Assert.IsTrue(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path, dest1Path));
+        Assert.IsTrue(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path.ToLowerInvariant(), dest1Path.ToUpperInvariant()));
+        Assert.IsTrue(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path.ToUpperInvariant(), dest1Path.ToLowerInvariant()));
 
         string differentVolumePath = Path.Combine(Environment.CurrentDirectory, "file000");
         Assert.IsFalse(cow.CopyOnWriteLinkSupportedBetweenPaths(differentVolumePath, dest1Path), "Cross-volume CoW should not be allowed");
