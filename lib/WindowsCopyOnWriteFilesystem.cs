@@ -111,11 +111,10 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 
         char sourceDriveLetter = resolvedSource[0];
         int sourceDriveIndex = IndexFromDriveLetter(sourceDriveLetter);
-        char driveLetter = char.ToUpper(resolvedSource[0]);
         DriveVolumeInfo driveInfo = GetOrUpdateDriveVolumeInfo(sourceDriveLetter, sourceDriveIndex);
         if (!driveInfo.SupportsCoW)
         {
-            throw new NotSupportedException($@"Drive volume {driveLetter}:\ does not support copy-on-write clone links, e.g. is not formatted with ReFS");
+            throw new NotSupportedException($@"Drive volume {sourceDriveLetter}:\ does not support copy-on-write clone links, e.g. is not formatted with ReFS");
         }
 
         // Get an open file handle to the source file.
@@ -169,14 +168,14 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         int sizeReturned = 0;
         var getIntegrityInfo = new NativeMethods.FSCTL_GET_INTEGRITY_INFORMATION_BUFFER();
         if (!NativeMethods.DeviceIoControl(
-                sourceFileHandle,
-                NativeMethods.FSCTL_GET_INTEGRITY_INFORMATION,
-                null,
-                0,
-                getIntegrityInfo,
-                NativeMethods.SizeOfGetIntegrityInformationBuffer,
-                ref sizeReturned,
-                IntPtr.Zero))
+            sourceFileHandle,
+            NativeMethods.FSCTL_GET_INTEGRITY_INFORMATION,
+            null,
+            0,
+            getIntegrityInfo,
+            NativeMethods.SizeOfGetIntegrityInformationBuffer,
+            ref sizeReturned,
+            IntPtr.Zero))
         {
             int lastErr = Marshal.GetLastWin32Error();
             ThrowSpecificIoException(lastErr,
@@ -192,14 +191,14 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                 Reserved = getIntegrityInfo.Reserved,
             };
             if (!NativeMethods.DeviceIoControl(
-                    destFileHandle,
-                    NativeMethods.FSCTL_SET_INTEGRITY_INFORMATION,
-                    setIntegrityInfo,
-                    NativeMethods.SizeOfSetIntegrityInformationBuffer,
-                    null,
-                    0,
-                    ref sizeReturned,
-                    IntPtr.Zero))
+                destFileHandle,
+                NativeMethods.FSCTL_SET_INTEGRITY_INFORMATION,
+                setIntegrityInfo,
+                NativeMethods.SizeOfSetIntegrityInformationBuffer,
+                null,
+                0,
+                ref sizeReturned,
+                IntPtr.Zero))
             {
                 int lastErr = Marshal.GetLastWin32Error();
                 ThrowSpecificIoException(lastErr,
