@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 
 namespace Microsoft.CopyOnWrite.TestUtilities;
 
@@ -62,7 +63,18 @@ public class WindowsReFsVhdSession : IDisposable
             throw new InvalidOperationException("Missing create/remove scripts in same directory as this assembly");
         }
 
+        string driveVhdPath = Path.Combine(Environment.CurrentDirectory, $"{openDriveLetter}.vhd");
+        if (File.Exists(driveVhdPath))
+        {
+            Console.WriteLine($"VHD already exists at {driveVhdPath}, deleting");
+            File.Delete(driveVhdPath);
+        }
+
         RunPowershellScript(createVhdScriptPath, $"{openDriveLetter}");
+
+        // Wait a moment for the drive mount to stabilize. A new Explorer window often opens and the first CoW link can fail.
+        Thread.Sleep(1000);
+        
         return new WindowsReFsVhdSession(openDriveLetter, removeVhdScriptPath);
     }
 

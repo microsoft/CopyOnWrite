@@ -92,7 +92,7 @@ public class CoWComparisons
         }
     }
 
-    [Benchmark(Baseline = true, Description = "File.Copy")]
+    [Benchmark(Baseline = true, Description = "File.Copy", OperationsPerInvoke = CopiesPerJob)]
     [EvaluateOverhead(false)]
     public void CopyFileNoExistingTarget()
     {
@@ -104,7 +104,7 @@ public class CoWComparisons
         }
     }
 
-    [Benchmark(Description = "CoW")]
+    [Benchmark(Description = "CoW", OperationsPerInvoke = CopiesPerJob)]
     [EvaluateOverhead(false)]  // Causes too-many-link exceptions.
     public void CowFileNoExistingTarget()
     {

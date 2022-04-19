@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
@@ -131,20 +132,22 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                 $"Failed to open file with winerror {lastErr} for source file '{resolvedSource}'");
         }
 
-        if (!NativeMethods.GetFileSizeEx(sourceFileHandle, out long sourceFileLength))
+        var fileInfo = new NativeMethods.BY_HANDLE_FILE_INFORMATION();
+        if (!NativeMethods.GetFileInformationByHandle(sourceFileHandle, ref fileInfo))
         {
             int lastErr = Marshal.GetLastWin32Error();
             ThrowSpecificIoException(lastErr,
-                $"Failed to get file size with winerror {lastErr} for source file '{resolvedSource}'");
+                $"Failed to get file info with winerror {lastErr} for source file '{resolvedSource}'");
         }
+
+        long sourceFileLength = fileInfo.FileSize;
 
         // Create an empty destination file.
         using SafeFileHandle destFileHandle = NativeMethods.CreateFile(destination, FileAccess.Write,
             FileShare.Delete, IntPtr.Zero, FileMode.Create, FileAttributes.Normal, IntPtr.Zero);
 
         // Set destination as sparse if the source is. Must be done while file is zero bytes.
-        FileAttributes sourceAttr = File.GetAttributes(resolvedSource);
-        if ((sourceAttr & FileAttributes.SparseFile) != 0)
+        if ((fileInfo.FileAttributes & FileAttributes.SparseFile) != 0)
         {
             // Set the destination to be sparse to match the source.
             int numBytesReturned = 0;
@@ -207,14 +210,9 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         }
 
         // Set the destination on-disk size the same as the source.
-        if (!NativeMethods.SetFilePointerEx(destFileHandle, sourceFileLength, IntPtr.Zero, 0 /*FILE_BEGIN*/))
-        {
-            int lastErr = Marshal.GetLastWin32Error();
-            ThrowSpecificIoException(lastErr,
-                $"Failed to set file pointer with winerror {lastErr} on destination file '{destination}'");
-        }
-
-        if (!NativeMethods.SetEndOfFile(destFileHandle))
+        var fileSizeInfo = new NativeMethods.FILE_END_OF_FILE_INFO(sourceFileLength);
+        if (!NativeMethods.SetFileInformationByHandle(destFileHandle, NativeMethods.FileInformationClass.FileEndOfFileInfo,
+                ref fileSizeInfo, NativeMethods.SizeOfFileEndOfFileInfo))
         {
             int lastErr = Marshal.GetLastWin32Error();
             ThrowSpecificIoException(lastErr,
@@ -374,19 +372,6 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             [MarshalAs(UnmanagedType.U4)] FileAttributes dwFlagsAndAttributes,
             IntPtr hTemplateFile);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GetFileSizeEx(SafeFileHandle hFile, out long lpFileSize);
-
-        [DllImport("Kernel32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SetFilePointerEx(SafeFileHandle hFile, long liDistanceToMove,
-            IntPtr lpNewFilePointer, uint dwMoveMethod);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SetEndOfFile(SafeFileHandle hFile);
-
         [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool DeviceIoControl(
@@ -429,6 +414,49 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             out ulong lpBytesPerSector,
             out ulong lpNumberOfFreeClusters,
             out ulong lpTotalNumberOfClusters);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern bool GetFileInformationByHandle(SafeFileHandle hFile, ref BY_HANDLE_FILE_INFORMATION fileInformation);
+
+        [StructLayout(LayoutKind.Sequential, Pack = 4)]
+        public struct BY_HANDLE_FILE_INFORMATION
+        {
+            public FileAttributes FileAttributes;
+            public FILETIME CreationTime;
+            public FILETIME LastAccessTime;
+            public FILETIME LastWriteTime;
+            public uint VolumeSerialNumber;
+            public uint FileSizeHigh;
+            public uint FileSizeLow;
+            public uint NumberOfLinks;
+            public uint FileIndexHigh;
+            public uint FileIndexLow;
+
+            public long FileSize => ((long)FileSizeHigh << 32) | FileSizeLow;
+        }
+
+        [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern bool SetFileInformationByHandle(SafeHandle hFile, FileInformationClass FileInformationClass, ref FILE_END_OF_FILE_INFO endOfFileInfo, int dwBufferSize);
+
+        public enum FileInformationClass
+        {
+            FileEndOfFileInfo = 6,
+        }
+
+        public static readonly int SizeOfFileEndOfFileInfo = Marshal.SizeOf(typeof(FILE_END_OF_FILE_INFO));
+
+        [StructLayout(LayoutKind.Sequential, Pack = 4)]
+        public struct FILE_END_OF_FILE_INFO
+        {
+            public FILE_END_OF_FILE_INFO(long fileSize)
+            {
+                FileSizeHigh = (uint)((ulong)fileSize >> 32);
+                FileSizeLow = (uint)(fileSize & 0xFFFFFFFF);
+            }
+
+            public uint FileSizeLow;
+            public uint FileSizeHigh;
+        }
 
         // For full version see https://www.pinvoke.net/default.aspx/kernel32.GetVolumeInformation
         [Flags]
