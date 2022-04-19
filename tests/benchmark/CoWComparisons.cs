@@ -52,8 +52,9 @@ public class CoWComparisons
         string testRootDir;
         if (OsHelper.IsWindows)
         {
-            ReFsVhdSession = WindowsReFsVhdSession.Create();
-            testRootDir = ReFsVhdSession.ReFsDriveRoot;
+            //ReFsVhdSession = WindowsReFsVhdSession.Create();
+            //testRootDir = ReFsVhdSession.ReFsDriveRoot;
+            testRootDir = @"d:\cowcompare";
         }
         else
         {

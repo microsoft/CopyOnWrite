@@ -24,10 +24,10 @@ namespace Microsoft.CopyOnWrite;
 public interface ICopyOnWriteFilesystem
 {
     /// <summary>
-    /// Provides a filesystem-specific maximum limit on the number of copy-on-write links allowed.
-    /// When Int.MaxValue there is no limit.
+    /// Provides a filesystem-specific maximum limit on the number of copy-on-write links allowed
+    /// per file. When Int.MaxValue there is no limit.
     /// </summary>
-    int MaxClones { get; }
+    int MaxClonesPerFile { get; }
 
     /// <summary>
     /// Determines whether a copy-on-write link can be created between the
@@ -63,7 +63,7 @@ public interface ICopyOnWriteFilesystem
     /// </param>
     /// <exception cref="System.NotSupportedException">Copy-on-write links are not supported between source and destination.</exception>
     /// <exception cref="MaxCloneFileLinksExceededException">
-    /// The link attempt failed because a filesystem limit was exceeded. See <see cref="MaxClones"/>.
+    /// The link attempt failed because a filesystem limit was exceeded. See <see cref="MaxClonesPerFile"/>.
     /// </exception>
     void CloneFile(string source, string destination);
 }

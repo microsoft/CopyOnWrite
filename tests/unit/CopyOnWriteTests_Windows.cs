@@ -221,13 +221,13 @@ public sealed class CopyOnWriteTests_Windows
         string sourceFilePath = Path.Combine(testSubDir, "source");
         File.WriteAllText(sourceFilePath, "ABC");
         ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
-        for (int i = 0; i < cow.MaxClones; i++)
+        for (int i = 0; i < cow.MaxClonesPerFile; i++)
         {
             // Up to limit expected to succeed.
             cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{i}"));
         }
 
-        Assert.ThrowsException<MaxCloneFileLinksExceededException>(() => cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{cow.MaxClones}")));
+        Assert.ThrowsException<MaxCloneFileLinksExceededException>(() => cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{cow.MaxClonesPerFile}")));
     }
 
     private static async Task StressTestCloning(string refsRoot)
@@ -235,7 +235,7 @@ public sealed class CopyOnWriteTests_Windows
         ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
 
         const int numFiles = 10;
-        var tasks = new List<Task>(cow.MaxClones * numFiles);
+        var tasks = new List<Task>(cow.MaxClonesPerFile * numFiles);
         for (int file = 1; file <= numFiles; file++)
         {
             string stressFolder = Path.Combine(refsRoot, $"Stress{file}");
@@ -244,8 +244,8 @@ public sealed class CopyOnWriteTests_Windows
             string content = $"1234abcd_{file}";
             await File.WriteAllTextAsync(origFilePath, content);
 
-            // Console.WriteLine($"Making {cow.MaxClones} CoW links on {origFilePath}");
-            for (int i = 0; i < cow.MaxClones; i++)
+            // Console.WriteLine($"Making {cow.MaxClonesPerFile} CoW links on {origFilePath}");
+            for (int i = 0; i < cow.MaxClonesPerFile; i++)
             {
                 var context = new StressIteration(file, i);
                 tasks.Add(Task.Run(async () =>

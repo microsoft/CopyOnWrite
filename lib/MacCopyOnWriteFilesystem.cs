@@ -7,7 +7,7 @@ namespace Microsoft.CopyOnWrite;
 
 internal sealed class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 {
-    public int MaxClones => int.MaxValue;
+    public int MaxClonesPerFile => int.MaxValue;
 
     public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination)
     {

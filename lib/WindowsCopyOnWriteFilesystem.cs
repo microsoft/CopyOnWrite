@@ -37,7 +37,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 
     // https://docs.microsoft.com/en-us/windows-server/storage/refs/block-cloning#functionality-restrictions-and-remarks
     /// <inheritdoc />
-    public int MaxClones => 8175;
+    public int MaxClonesPerFile => 8175;
 
     // TODO: Deal with \??\ prefixes
     // TODO: Deal with \\?\ prefixes
@@ -253,7 +253,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                 {
                     additionalMessage =
                         " This is ERROR_BLOCK_TOO_MANY_REFERENCES and may mean you have surpassed the maximum " +
-                        $"allowed {MaxClones} references for a single file. " +
+                        $"allowed {MaxClonesPerFile} references for a single file. " +
                         "See https://docs.microsoft.com/en-us/windows-server/storage/refs/block-cloning#functionality-restrictions-and-remarks";
                 }
 
