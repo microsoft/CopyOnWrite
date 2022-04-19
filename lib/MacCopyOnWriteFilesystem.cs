@@ -23,7 +23,9 @@ internal sealed class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         throw new NotImplementedException();
     }
 
-    public void CloneFile(string source, string destination)
+    public void CloneFile(string source, string destination) => CloneFile(source, destination, CloneFlags.None);
+
+    public void CloneFile(string source, string destination, CloneFlags cloneFlags)
     {
         // TODO: Use clonefile().
         throw new NotImplementedException();

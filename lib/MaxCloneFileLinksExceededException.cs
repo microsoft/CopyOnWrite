@@ -9,8 +9,8 @@ namespace Microsoft.CopyOnWrite;
 
 /// <summary>
 /// The exception thrown when an attempt to add a new copy-on-write file clone
-/// via <see cref="ICopyOnWriteFilesystem.CloneFile"/> failed because a limit
-/// imposed by the filesystem was exceeded.
+/// via <see cref="ICopyOnWriteFilesystem"/> failed because a limit on the number
+/// of links per file imposed by the filesystem was exceeded.
 /// </summary>
 [Serializable]
 public sealed class MaxCloneFileLinksExceededException : IOException

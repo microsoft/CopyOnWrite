@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+
 namespace Microsoft.CopyOnWrite;
 
 /// <summary>
@@ -49,8 +51,24 @@ public interface ICopyOnWriteFilesystem
     /// determines whether the entire drive volume filesystem is ReFS and supports
     /// copy-on-write links.
     /// </param>
-    /// <returns></returns>
+    /// <returns>True if a link can be created, false if it cannot.</returns>
     bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory);
+
+    /// <summary>
+    /// Creates a copy-on-write link at <paramref name="destination"/> pointing
+    /// to <paramref name="source"/>, overwriting any existing file or link.
+    /// Implicitly uses <see cref="CloneFlags.None"/>.
+    /// </summary>
+    /// <param name="source">The original file to which to link.</param>
+    /// <param name="destination">
+    /// The path where the link will be created. This must not already exist as a directory,
+    /// and the parent directory must exist before this call.
+    /// </param>
+    /// <exception cref="System.NotSupportedException">Copy-on-write links are not supported between source and destination.</exception>
+    /// <exception cref="MaxCloneFileLinksExceededException">
+    /// The link attempt failed because a filesystem limit on the number of clones per file was exceeded. See <see cref="MaxClonesPerFile"/>.
+    /// </exception>
+    void CloneFile(string source, string destination);
 
     /// <summary>
     /// Creates a copy-on-write link at <paramref name="destination"/> pointing
@@ -61,9 +79,36 @@ public interface ICopyOnWriteFilesystem
     /// The path where the link will be created. This must not already exist as a directory,
     /// and the parent directory must exist before this call.
     /// </param>
+    /// <param name="cloneFlags">Flags to change behavior during creation of the CoW link.</param>
     /// <exception cref="System.NotSupportedException">Copy-on-write links are not supported between source and destination.</exception>
     /// <exception cref="MaxCloneFileLinksExceededException">
-    /// The link attempt failed because a filesystem limit was exceeded. See <see cref="MaxClonesPerFile"/>.
+    /// The link attempt failed because a filesystem limit on the number of clones per file was exceeded. See <see cref="MaxClonesPerFile"/>.
     /// </exception>
-    void CloneFile(string source, string destination);
+    void CloneFile(string source, string destination, CloneFlags cloneFlags);
+}
+
+/// <summary>
+/// Flags to change CoW link behavior.
+/// </summary>
+[Flags]
+public enum CloneFlags
+{
+    /// <summary>
+    /// Default zero value, no behavior changes.
+    /// </summary>
+    None,
+
+    /// <summary>
+    /// Skip check for and copy of Windows file integrity settings from source to destination.
+    /// Use when the filesystem and file are known not to use integrity.
+    /// Saves 1-2 kernel round-trips.
+    /// </summary>
+    NoFileIntegrityCheck,
+
+    /// <summary>
+    /// Skip check for Windows sparse file attribute and application of sparse setting in destination.
+    /// Use when the filesystem and file are known not to be sparse.
+    /// Saves time by allowing use of less expensive kernel APIs.
+    /// </summary>
+    NoSparseFileCheck,
 }

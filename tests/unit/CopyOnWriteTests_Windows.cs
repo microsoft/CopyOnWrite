@@ -71,7 +71,11 @@ public sealed class CopyOnWriteTests_Windows
 
     [TestMethod]
     [TestCategory("Admin")]
-    public async Task ReFSPositiveDetectionAndCloneFileCorrectBehavior()
+    [DataRow(CloneFlags.None)]
+    [DataRow(CloneFlags.NoFileIntegrityCheck)]
+    [DataRow(CloneFlags.NoSparseFileCheck)]
+    [DataRow(CloneFlags.NoFileIntegrityCheck | CloneFlags.NoSparseFileCheck)]
+    public async Task ReFSPositiveDetectionAndCloneFileCorrectBehavior(CloneFlags cloneFlags)
     {
         using WindowsReFsVhdSession refs = WindowsReFsVhdSession.Create();
 
@@ -92,7 +96,7 @@ public sealed class CopyOnWriteTests_Windows
         Assert.IsFalse(cow.CopyOnWriteLinkSupportedBetweenPaths(differentVolumePath, dest1Path), "Cross-volume CoW should not be allowed");
         Assert.IsFalse(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path, differentVolumePath), "Cross-volume CoW should not be allowed");
 
-        cow.CloneFile(source1Path, dest1Path);
+        cow.CloneFile(source1Path, dest1Path, cloneFlags);
         Assert.IsTrue(File.Exists(dest1Path));
         var source1FI = new FileInfo(source1Path);
         var dest1FI = new FileInfo(dest1Path);
@@ -102,7 +106,7 @@ public sealed class CopyOnWriteTests_Windows
 
         // Clone a clone.
         string dest2Path = Path.Combine(refsDriveRoot, "dest2");
-        cow.CloneFile(dest1Path, dest2Path);
+        cow.CloneFile(dest1Path, dest2Path, cloneFlags);
         Assert.IsTrue(File.Exists(dest2Path));
         var dest2FI = new FileInfo(dest2Path);
         Assert.AreEqual(source1FI.Length, dest2FI.Length);
@@ -132,7 +136,7 @@ public sealed class CopyOnWriteTests_Windows
             s.Write(new byte[] { 0xAA, 0xBB, 0xCC, 0xDD});
         }
 
-        cow.CloneFile(largeSourcePath, dest1Path);
+        cow.CloneFile(largeSourcePath, dest1Path, cloneFlags);
         Assert.IsTrue(File.Exists(dest1Path));
         dest1FI = new FileInfo(dest1Path);
         Assert.AreEqual(largeSourceSize, dest1FI.Length);
@@ -155,12 +159,12 @@ public sealed class CopyOnWriteTests_Windows
             Assert.AreEqual(0xDD, buffer[3]);
 
             // Other tests.
-            CloneFileDestinationIsDir(refsDriveRoot);
-            CloneFileMissingSourceDir(refsDriveRoot);
-            CloneFileMissingSourceFileInExistingDir(refsDriveRoot);
-            CloneFileSourceIsDir(refsDriveRoot);
-            CloneFileExceedReFsLimit(refsDriveRoot);
-            await StressTestCloning(refsDriveRoot);
+            CloneFileDestinationIsDir(refsDriveRoot, cloneFlags);
+            CloneFileMissingSourceDir(refsDriveRoot, cloneFlags);
+            CloneFileMissingSourceFileInExistingDir(refsDriveRoot, cloneFlags);
+            CloneFileSourceIsDir(refsDriveRoot, cloneFlags);
+            CloneFileExceedReFsLimit(refsDriveRoot, cloneFlags);
+            await StressTestCloning(refsDriveRoot, cloneFlags);
         }
     }
 
@@ -183,38 +187,38 @@ public sealed class CopyOnWriteTests_Windows
         Assert.AreEqual(8192L, WindowsCopyOnWriteFilesystem.RoundUpToPowerOf2(4097, 4096));
     }
 
-    private static void CloneFileMissingSourceFileInExistingDir(string refsRoot)
+    private static void CloneFileMissingSourceFileInExistingDir(string refsRoot, CloneFlags cloneFlags)
     {
         string sourceFilePath = Path.Combine(refsRoot, "source_" + nameof(CloneFileMissingSourceFileInExistingDir));
         string destFilePath = Path.Combine(refsRoot, nameof(CloneFileMissingSourceFileInExistingDir));
         ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
-        Assert.ThrowsException<FileNotFoundException>(() => cow.CloneFile(sourceFilePath, destFilePath));
+        Assert.ThrowsException<FileNotFoundException>(() => cow.CloneFile(sourceFilePath, destFilePath, cloneFlags));
     }
 
-    private static void CloneFileMissingSourceDir(string refsRoot)
+    private static void CloneFileMissingSourceDir(string refsRoot, CloneFlags cloneFlags)
     {
         string sourceFilePath = Path.Combine(refsRoot, "missingDir", "source_" + nameof(CloneFileMissingSourceDir));
         string destFilePath = Path.Combine(refsRoot, nameof(CloneFileMissingSourceDir));
         ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
-        Assert.ThrowsException<DirectoryNotFoundException>(() => cow.CloneFile(sourceFilePath, destFilePath));
+        Assert.ThrowsException<DirectoryNotFoundException>(() => cow.CloneFile(sourceFilePath, destFilePath, cloneFlags));
     }
 
-    private static void CloneFileSourceIsDir(string refsRoot)
+    private static void CloneFileSourceIsDir(string refsRoot, CloneFlags cloneFlags)
     {
         string destFilePath = Path.Combine(refsRoot, nameof(CloneFileSourceIsDir));
         ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
-        Assert.ThrowsException<UnauthorizedAccessException>(() => cow.CloneFile(refsRoot, destFilePath));
+        Assert.ThrowsException<UnauthorizedAccessException>(() => cow.CloneFile(refsRoot, destFilePath, cloneFlags));
     }
 
-    private static void CloneFileDestinationIsDir(string refsRoot)
+    private static void CloneFileDestinationIsDir(string refsRoot, CloneFlags cloneFlags)
     {
         string sourceFilePath = Path.Combine(refsRoot, "source_" + nameof(CloneFileDestinationIsDir));
         File.WriteAllText(sourceFilePath, "ABC");
         ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
-        Assert.ThrowsException<UnauthorizedAccessException>(() => cow.CloneFile(sourceFilePath, refsRoot));
+        Assert.ThrowsException<UnauthorizedAccessException>(() => cow.CloneFile(sourceFilePath, refsRoot, cloneFlags));
     }
 
-    private static void CloneFileExceedReFsLimit(string refsRoot)
+    private static void CloneFileExceedReFsLimit(string refsRoot, CloneFlags cloneFlags)
     {
         string testSubDir = Path.Combine(refsRoot, nameof(CloneFileExceedReFsLimit));
         Directory.CreateDirectory(testSubDir);
@@ -224,17 +228,17 @@ public sealed class CopyOnWriteTests_Windows
         for (int i = 0; i < cow.MaxClonesPerFile; i++)
         {
             // Up to limit expected to succeed.
-            cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{i}"));
+            cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{i}"), cloneFlags);
         }
 
-        Assert.ThrowsException<MaxCloneFileLinksExceededException>(() => cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{cow.MaxClonesPerFile}")));
+        Assert.ThrowsException<MaxCloneFileLinksExceededException>(() => cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{cow.MaxClonesPerFile}"), cloneFlags));
     }
 
-    private static async Task StressTestCloning(string refsRoot)
+    private static async Task StressTestCloning(string refsRoot, CloneFlags cloneFlags)
     {
         ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
 
-        const int numFiles = 10;
+        const int numFiles = 3;
         var tasks = new List<Task>(cow.MaxClonesPerFile * numFiles);
         for (int file = 1; file <= numFiles; file++)
         {
@@ -253,7 +257,7 @@ public sealed class CopyOnWriteTests_Windows
                     string testPath = Path.Combine(stressFolder, $"test{context.Index}");
                     try
                     {
-                        cow.CloneFile(origFilePath, testPath);
+                        cow.CloneFile(origFilePath, testPath, cloneFlags);
                     }
                     catch (Exception ex)
                     {

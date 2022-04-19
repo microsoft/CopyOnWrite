@@ -32,6 +32,7 @@ if (canCloneInCurrentDirectory)
 ## Release History
 [NuGet package](https://www.nuget.org/packages/CopyOnWrite):
 
+* 0.1.8 April 2022: Add overload for CoW clone to allow bypassing some Windows filesystem feature checks
 * 0.1.7 April 2022: Perf improvement for Windows CoW link creation by reducing kernel round-trips
 * 0.1.6 April 2022: Perf improvement for all Windows APIs
 * 0.1.5 October 2021: Separate exception type for when link limit is exceeded. Mac and Linux throw NotSupportedException.

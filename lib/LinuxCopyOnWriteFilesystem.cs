@@ -20,7 +20,9 @@ internal sealed class LinuxCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         throw new NotImplementedException();
     }
 
-    public void CloneFile(string source, string destination)
+    public void CloneFile(string source, string destination) => CloneFile(source, destination, CloneFlags.None);
+
+    public void CloneFile(string source, string destination, CloneFlags cloneFlags)
     {
         // TODO: Use ficlone().
         throw new NotImplementedException();

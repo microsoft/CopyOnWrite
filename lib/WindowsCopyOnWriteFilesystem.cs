@@ -99,10 +99,16 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     }
 
     /// <inheritdoc />
+    public void CloneFile(string source, string destination)
+    {
+        CloneFile(source, destination, CloneFlags.None);
+    }
+
+    /// <inheritdoc />
     // Ref: https://docs.microsoft.com/en-us/windows/win32/fileio/block-cloning
     // Also see https://github.com/0xbadfca11/reflink/blob/master/reflink.cpp
     // (discussion in http://blog.dewin.me/2017/02/under-hood-how-does-refs-block-cloning.html).
-    public void CloneFile(string source, string destination)
+    public void CloneFile(string source, string destination, CloneFlags cloneFlags)
     {
         (string resolvedSource, bool sourceOk) = ResolvePathAndEnsureDriveLetterVolume(source);
         if (!sourceOk)
@@ -132,80 +138,97 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                 $"Failed to open file with winerror {lastErr} for source file '{resolvedSource}'");
         }
 
-        var fileInfo = new NativeMethods.BY_HANDLE_FILE_INFORMATION();
-        if (!NativeMethods.GetFileInformationByHandle(sourceFileHandle, ref fileInfo))
-        {
-            int lastErr = Marshal.GetLastWin32Error();
-            ThrowSpecificIoException(lastErr,
-                $"Failed to get file info with winerror {lastErr} for source file '{resolvedSource}'");
-        }
-
-        long sourceFileLength = fileInfo.FileSize;
-
         // Create an empty destination file.
         using SafeFileHandle destFileHandle = NativeMethods.CreateFile(destination, FileAccess.Write,
             FileShare.Delete, IntPtr.Zero, FileMode.Create, FileAttributes.Normal, IntPtr.Zero);
 
-        // Set destination as sparse if the source is. Must be done while file is zero bytes.
-        if ((fileInfo.FileAttributes & FileAttributes.SparseFile) != 0)
+        long sourceFileLength;
+        if ((cloneFlags & CloneFlags.NoSparseFileCheck) != 0)
         {
-            // Set the destination to be sparse to match the source.
-            int numBytesReturned = 0;
-            if (!NativeMethods.DeviceIoControl(
-                destFileHandle,
-                NativeMethods.FSCTL_SET_SPARSE,
-                null,
-                0,
-                null,
-                0,
-                ref numBytesReturned,
-                IntPtr.Zero))
+            // Use cheaper API to just get the size.
+            if (!NativeMethods.GetFileSizeEx(sourceFileHandle, out sourceFileLength))
             {
                 int lastErr = Marshal.GetLastWin32Error();
                 ThrowSpecificIoException(lastErr,
-                    $"Failed to set file sparseness with winerror {lastErr} for destination file '{destination}'");
+                    $"Failed to get file info with winerror {lastErr} for source file '{resolvedSource}'");
+            }
+        }
+        else
+        {
+            var fileInfo = new NativeMethods.BY_HANDLE_FILE_INFORMATION();
+            if (!NativeMethods.GetFileInformationByHandle(sourceFileHandle, ref fileInfo))
+            {
+                int lastErr = Marshal.GetLastWin32Error();
+                ThrowSpecificIoException(lastErr,
+                    $"Failed to get file info with winerror {lastErr} for source file '{resolvedSource}'");
+            }
+
+            sourceFileLength = fileInfo.FileSize;
+
+            // Set destination as sparse if the source is. Must be done while file is zero bytes.
+            if ((fileInfo.FileAttributes & FileAttributes.SparseFile) != 0)
+            {
+                // Set the destination to be sparse to match the source.
+                int numBytesReturned = 0;
+                if (!NativeMethods.DeviceIoControl(
+                        destFileHandle,
+                        NativeMethods.FSCTL_SET_SPARSE,
+                        null,
+                        0,
+                        null,
+                        0,
+                        ref numBytesReturned,
+                        IntPtr.Zero))
+                {
+                    int lastErr = Marshal.GetLastWin32Error();
+                    ThrowSpecificIoException(lastErr,
+                        $"Failed to set file sparseness with winerror {lastErr} for destination file '{destination}'");
+                }
             }
         }
 
         // Clone file integrity settings from source to destination. Must be done while file is zero size.
-        int sizeReturned = 0;
-        var getIntegrityInfo = new NativeMethods.FSCTL_GET_INTEGRITY_INFORMATION_BUFFER();
-        if (!NativeMethods.DeviceIoControl(
-            sourceFileHandle,
-            NativeMethods.FSCTL_GET_INTEGRITY_INFORMATION,
-            null,
-            0,
-            getIntegrityInfo,
-            NativeMethods.SizeOfGetIntegrityInformationBuffer,
-            ref sizeReturned,
-            IntPtr.Zero))
+        if ((cloneFlags & CloneFlags.NoFileIntegrityCheck) == 0)
         {
-            int lastErr = Marshal.GetLastWin32Error();
-            ThrowSpecificIoException(lastErr,
-                $"Failed to get integrity information with winerror {lastErr} from source file '{source}'");
-        }
-
-        if (getIntegrityInfo.ChecksumAlgorithm != 0 || getIntegrityInfo.Flags != 0)
-        {
-            var setIntegrityInfo = new NativeMethods.FSCTL_SET_INTEGRITY_INFORMATION_BUFFER
-            {
-                ChecksumAlgorithm = getIntegrityInfo.ChecksumAlgorithm,
-                Flags = getIntegrityInfo.Flags,
-                Reserved = getIntegrityInfo.Reserved,
-            };
+            int sizeReturned = 0;
+            var getIntegrityInfo = new NativeMethods.FSCTL_GET_INTEGRITY_INFORMATION_BUFFER();
             if (!NativeMethods.DeviceIoControl(
-                destFileHandle,
-                NativeMethods.FSCTL_SET_INTEGRITY_INFORMATION,
-                setIntegrityInfo,
-                NativeMethods.SizeOfSetIntegrityInformationBuffer,
+                sourceFileHandle,
+                NativeMethods.FSCTL_GET_INTEGRITY_INFORMATION,
                 null,
                 0,
+                getIntegrityInfo,
+                NativeMethods.SizeOfGetIntegrityInformationBuffer,
                 ref sizeReturned,
                 IntPtr.Zero))
             {
                 int lastErr = Marshal.GetLastWin32Error();
                 ThrowSpecificIoException(lastErr,
-                    $"Failed to set integrity information with winerror {lastErr} on destination file '{destination}'");
+                    $"Failed to get integrity information with winerror {lastErr} from source file '{source}'");
+            }
+
+            if (getIntegrityInfo.ChecksumAlgorithm != 0 || getIntegrityInfo.Flags != 0)
+            {
+                var setIntegrityInfo = new NativeMethods.FSCTL_SET_INTEGRITY_INFORMATION_BUFFER
+                {
+                    ChecksumAlgorithm = getIntegrityInfo.ChecksumAlgorithm,
+                    Flags = getIntegrityInfo.Flags,
+                    Reserved = getIntegrityInfo.Reserved,
+                };
+                if (!NativeMethods.DeviceIoControl(
+                        destFileHandle,
+                        NativeMethods.FSCTL_SET_INTEGRITY_INFORMATION,
+                        setIntegrityInfo,
+                        NativeMethods.SizeOfSetIntegrityInformationBuffer,
+                        null,
+                        0,
+                        ref sizeReturned,
+                        IntPtr.Zero))
+                {
+                    int lastErr = Marshal.GetLastWin32Error();
+                    ThrowSpecificIoException(lastErr,
+                        $"Failed to set integrity information with winerror {lastErr} on destination file '{destination}'");
+                }
             }
         }
 
@@ -294,12 +317,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     internal static long RoundUpToPowerOf2(long originalValue, long roundingMultiplePowerOf2)
     {
         long mask = roundingMultiplePowerOf2 - 1;
-        if ((originalValue & mask) == 0)
-        {
-            return originalValue;
-        }
-
-        return (originalValue & ~mask) + roundingMultiplePowerOf2;
+        return (originalValue + mask) & ~mask;
     }
 
     private static DriveVolumeInfo GetDriveVolumeInfo(char driveLetter)
@@ -415,6 +433,10 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             out ulong lpNumberOfFreeClusters,
             out ulong lpTotalNumberOfClusters);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetFileSizeEx(SafeFileHandle hFile, out long lpFileSize);
+
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         public static extern bool GetFileInformationByHandle(SafeFileHandle hFile, ref BY_HANDLE_FILE_INFORMATION fileInformation);
 
@@ -486,7 +508,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         public static readonly int SizeOfDuplicateExtentsData = Marshal.SizeOf(typeof(DUPLICATE_EXTENTS_DATA));
 
         [StructLayout(LayoutKind.Sequential)]
-        public struct DUPLICATE_EXTENTS_DATA
+        public ref struct DUPLICATE_EXTENTS_DATA
         {
             public SafeHandle? FileHandle;
             public long SourceFileOffset;
