@@ -233,7 +233,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         }
 
         // Set the destination on-disk size the same as the source.
-        var fileSizeInfo = new NativeMethods.FILE_END_OF_FILE_INFO(sourceFileLength);
+        var fileSizeInfo = new NativeMethods.FILE_END_OF_FILE_INFO { FileSize = sourceFileLength };
         if (!NativeMethods.SetFileInformationByHandle(destFileHandle, NativeMethods.FileInformationClass.FileEndOfFileInfo,
                 ref fileSizeInfo, NativeMethods.SizeOfFileEndOfFileInfo))
         {
@@ -381,6 +381,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     private static class NativeMethods
     {
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern SafeFileHandle CreateFile(
             string lpFileName,
             [MarshalAs(UnmanagedType.U4)] FileAccess dwDesiredAccess,
@@ -392,6 +393,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 
         [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         [return: MarshalAs(UnmanagedType.Bool)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern bool DeviceIoControl(
             SafeHandle hDevice,
             uint dwIoControlCode,
@@ -404,6 +406,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 
         [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         [return: MarshalAs(UnmanagedType.Bool)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern bool DeviceIoControl(
             SafeHandle hDevice,
             uint dwIoControlCode,
@@ -415,6 +418,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             [In] IntPtr lpOverlapped);
 
         [DllImport("Kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern bool GetVolumeInformation(
             string rootPathName,
             StringBuilder? volumeName,
@@ -426,6 +430,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             int nFileSystemNameSize);
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern bool GetDiskFreeSpace(
             string lpRootPathName,
             out ulong lpSectorsPerCluster,
@@ -435,9 +440,11 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern bool GetFileSizeEx(SafeFileHandle hFile, out long lpFileSize);
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern bool GetFileInformationByHandle(SafeFileHandle hFile, ref BY_HANDLE_FILE_INFORMATION fileInformation);
 
         [StructLayout(LayoutKind.Sequential, Pack = 4)]
@@ -458,6 +465,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         }
 
         [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern bool SetFileInformationByHandle(SafeHandle hFile, FileInformationClass FileInformationClass, ref FILE_END_OF_FILE_INFO endOfFileInfo, int dwBufferSize);
 
         public enum FileInformationClass
@@ -470,14 +478,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         [StructLayout(LayoutKind.Sequential, Pack = 4)]
         public struct FILE_END_OF_FILE_INFO
         {
-            public FILE_END_OF_FILE_INFO(long fileSize)
-            {
-                FileSizeHigh = (uint)((ulong)fileSize >> 32);
-                FileSizeLow = (uint)(fileSize & 0xFFFFFFFF);
-            }
-
-            public uint FileSizeLow;
-            public uint FileSizeHigh;
+            public long FileSize;
         }
 
         // For full version see https://www.pinvoke.net/default.aspx/kernel32.GetVolumeInformation

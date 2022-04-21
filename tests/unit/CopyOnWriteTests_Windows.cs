@@ -99,6 +99,7 @@ public sealed class CopyOnWriteTests_Windows
         cow.CloneFile(source1Path, dest1Path, cloneFlags);
         Assert.IsTrue(File.Exists(dest1Path));
         var source1FI = new FileInfo(source1Path);
+        Console.WriteLine($"source1 size {source1FI.Length}");
         var dest1FI = new FileInfo(dest1Path);
         Assert.AreEqual(source1FI.Length, dest1FI.Length);
         string dest1Contents = await File.ReadAllTextAsync(dest1Path);
@@ -163,8 +164,8 @@ public sealed class CopyOnWriteTests_Windows
             CloneFileMissingSourceDir(refsDriveRoot, cloneFlags);
             CloneFileMissingSourceFileInExistingDir(refsDriveRoot, cloneFlags);
             CloneFileSourceIsDir(refsDriveRoot, cloneFlags);
-            CloneFileExceedReFsLimit(refsDriveRoot, cloneFlags);
-            await StressTestCloning(refsDriveRoot, cloneFlags);
+            await CloneFileExceedReFsLimitAsync(refsDriveRoot, cloneFlags);
+            await StressTestCloningAsync(refsDriveRoot, cloneFlags);
         }
     }
 
@@ -218,23 +219,25 @@ public sealed class CopyOnWriteTests_Windows
         Assert.ThrowsException<UnauthorizedAccessException>(() => cow.CloneFile(sourceFilePath, refsRoot, cloneFlags));
     }
 
-    private static void CloneFileExceedReFsLimit(string refsRoot, CloneFlags cloneFlags)
+    private static async Task CloneFileExceedReFsLimitAsync(string refsRoot, CloneFlags cloneFlags)
     {
-        string testSubDir = Path.Combine(refsRoot, nameof(CloneFileExceedReFsLimit));
+        string testSubDir = Path.Combine(refsRoot, nameof(CloneFileExceedReFsLimitAsync));
         Directory.CreateDirectory(testSubDir);
         string sourceFilePath = Path.Combine(testSubDir, "source");
-        File.WriteAllText(sourceFilePath, "ABC");
+        await File.WriteAllTextAsync(sourceFilePath, "ABC");
         ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
         for (int i = 0; i < cow.MaxClonesPerFile; i++)
         {
             // Up to limit expected to succeed.
-            cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{i}"), cloneFlags);
+            string testPath = Path.Combine(testSubDir, $"dest{i}");
+            cow.CloneFile(sourceFilePath, testPath, cloneFlags);
+            Assert.AreEqual("ABC", await File.ReadAllTextAsync(testPath), testPath);
         }
 
         Assert.ThrowsException<MaxCloneFileLinksExceededException>(() => cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{cow.MaxClonesPerFile}"), cloneFlags));
     }
 
-    private static async Task StressTestCloning(string refsRoot, CloneFlags cloneFlags)
+    private static async Task StressTestCloningAsync(string refsRoot, CloneFlags cloneFlags)
     {
         ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
 
@@ -248,7 +251,6 @@ public sealed class CopyOnWriteTests_Windows
             string content = $"1234abcd_{file}";
             await File.WriteAllTextAsync(origFilePath, content);
 
-            // Console.WriteLine($"Making {cow.MaxClonesPerFile} CoW links on {origFilePath}");
             for (int i = 0; i < cow.MaxClonesPerFile; i++)
             {
                 var context = new StressIteration(file, i);
