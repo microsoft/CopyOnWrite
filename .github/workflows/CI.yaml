@@ -20,7 +20,7 @@ jobs:
         # No "with: dotnet-version" specified -> use global.json
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
-      - name: Shrink C drive and create a ReFS E drive
+      - name: Shrink C drive and create a ReFS E drive, then run tests
         run: |
           mkdir c:\ReFS
           dir c:\
@@ -39,10 +39,7 @@ jobs:
           if not exist C:\ReFS echo ERROR: diskpart failed && exit /b 1
 
           @rem CODESYNC: WindowsReFSDriveSession.cs
-          SETX CoW_Test_ReFS_Drive E:\
-          set
           set CoW_Test_ReFS_Drive=E:\
 
-          exit /b 0
+          dotnet test --no-restore
         shell: cmd
-      - run: dotnet test --no-restore
