@@ -22,9 +22,12 @@ jobs:
       - run: dotnet build --configuration Release --no-restore
       - name: Shrink C drive and create a ReFS E drive
         run: |
+          dir c:\
+
           echo SELECT VOLUME C:                  >DiskPartScript.txt
-          echo SHRINK                           >>DiskPartScript.txt
+          echo SHRINK DESIRED=10240             >>DiskPartScript.txt
           echo CREATE PARTITION PRIMARY         >>DiskPartScript.txt
+          echo LIST PARTITION                   >>DiskPartScript.txt
           echo SELECT PARTITION 5               >>DiskPartScript.txt
           echo FORMAT FS=ReFS LABEL=ReFS Test   >>DiskPartScript.txt
           echo ASSIGN LETTER=E                  >>DiskPartScript.txt
