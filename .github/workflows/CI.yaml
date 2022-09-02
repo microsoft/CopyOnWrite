@@ -22,6 +22,7 @@ jobs:
       - run: dotnet build --configuration Release --no-restore
       - name: Shrink C drive and create a ReFS E drive
         run: |
+          mkdir c:\ReFS
           dir c:\
 
           echo SELECT VOLUME C:                  >DiskPartScript.txt
