@@ -15,6 +15,7 @@ namespace Microsoft.CopyOnWrite.Tests.Windows;
 // E.g. dotnet test --filter TestCategory=Windows
 [TestClass]
 [TestCategory("Windows")]
+[DoNotParallelize]  // Ensure the 32-bit and 64-bit suites do not collide.
 public sealed class CopyOnWriteTests_Windows
 {
     [TestMethod]
@@ -78,16 +79,16 @@ public sealed class CopyOnWriteTests_Windows
     [DataRow(CloneFlags.NoFileIntegrityCheck | CloneFlags.NoSparseFileCheck)]
     public async Task ReFSPositiveDetectionAndCloneFileCorrectBehavior(CloneFlags cloneFlags)
     {
-        using WindowsReFsVhdSession refs = WindowsReFsVhdSession.Create();
+        using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create($"{nameof(ReFSPositiveDetectionAndCloneFileCorrectBehavior)}({(int)cloneFlags})");
 
         var cow = new WindowsCopyOnWriteFilesystem();
-        string refsDriveRoot = refs.ReFsDriveRoot;
+        string refsTestRoot = refs.ReFsDriveRoot;
 
-        Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(refsDriveRoot));
+        Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(refsTestRoot));
 
-        string source1Path = Path.Combine(refsDriveRoot, "source1");
+        string source1Path = Path.Combine(refsTestRoot, "source1");
         await File.WriteAllTextAsync(source1Path, "AABBCCDD");
-        string dest1Path = Path.Combine(refsDriveRoot, "dest1");
+        string dest1Path = Path.Combine(refsTestRoot, "dest1");
 
         Assert.IsTrue(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path, dest1Path));
         Assert.IsTrue(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path.ToLowerInvariant(), dest1Path.ToUpperInvariant()));
@@ -107,7 +108,7 @@ public sealed class CopyOnWriteTests_Windows
         Assert.AreEqual("AABBCCDD", dest1Contents);
 
         // Clone a clone.
-        string dest2Path = Path.Combine(refsDriveRoot, "dest2");
+        string dest2Path = Path.Combine(refsTestRoot, "dest2");
         cow.CloneFile(dest1Path, dest2Path, cloneFlags);
         Assert.IsTrue(File.Exists(dest2Path));
         var dest2FI = new FileInfo(dest2Path);
@@ -127,7 +128,7 @@ public sealed class CopyOnWriteTests_Windows
         Assert.AreEqual("AABBCCDD", dest2Contents);
 
         // Create and clone a large file onto previously created clones.
-        string largeSourcePath = Path.Combine(refsDriveRoot, "largeFile");
+        string largeSourcePath = Path.Combine(refsTestRoot, "largeFile");
         const long largeSourceSize = WindowsCopyOnWriteFilesystem.MaxChunkSize + 1024L;  // A bit above limit to force multiple chunk copies.
         Console.WriteLine($"Creating file with size {largeSourceSize}");
         await using (FileStream s = File.OpenWrite(largeSourcePath))
@@ -161,12 +162,12 @@ public sealed class CopyOnWriteTests_Windows
             Assert.AreEqual(0xDD, buffer[3]);
 
             // Other tests.
-            CloneFileDestinationIsDir(refsDriveRoot, cloneFlags);
-            CloneFileMissingSourceDir(refsDriveRoot, cloneFlags);
-            CloneFileMissingSourceFileInExistingDir(refsDriveRoot, cloneFlags);
-            CloneFileSourceIsDir(refsDriveRoot, cloneFlags);
-            await CloneFileExceedReFsLimitAsync(refsDriveRoot, cloneFlags);
-            await StressTestCloningAsync(refsDriveRoot, cloneFlags);
+            CloneFileDestinationIsDir(refsTestRoot, cloneFlags);
+            CloneFileMissingSourceDir(refsTestRoot, cloneFlags);
+            CloneFileMissingSourceFileInExistingDir(refsTestRoot, cloneFlags);
+            CloneFileSourceIsDir(refsTestRoot, cloneFlags);
+            await CloneFileExceedReFsLimitAsync(refsTestRoot, cloneFlags);
+            await StressTestCloningAsync(refsTestRoot, cloneFlags);
         }
     }
 

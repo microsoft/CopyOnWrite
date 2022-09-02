@@ -21,6 +21,12 @@ namespace Microsoft.CopyOnWrite;
 /// CoW is only supported on some filesystems. macOS AppleFS natively
 /// supports it. On Windows, ReFS supports CoW while the default NTFS
 /// filesystem does not. On Linux, Btrfs, Xfs, and Zfs support CoW.
+///
+/// Note that implementations of this interface typically use internal caches
+/// to avoid making kernel calls as much as possible. This can miss changes to
+/// the filesystem made after the cached information was created.
+/// <see cref="ClearFilesystemCache"/> allows you to clear the cache when
+/// filesystem changes are detected.
 /// </summary>
 // TODO: Document and UT for if source is a directory, a hardlink, a symlink, or a CoW link.
 public interface ICopyOnWriteFilesystem
@@ -47,9 +53,10 @@ public interface ICopyOnWriteFilesystem
     /// <param name="rootDirectory">
     /// A root directory to be queried. This can for instance be a repo root or parent
     /// directory containing build and test outputs. For *nix and macOS this can be
-    /// the filesystem root '/'. For Windows this can be a drive root like 'C:\' which
+    /// the filesystem root '/'. For Windows this can be a drive root like 'C:\' that
     /// determines whether the entire drive volume filesystem is ReFS and supports
-    /// copy-on-write links.
+    /// copy-on-write links, or it can be a path under a volume mount point within
+    /// another volume.
     /// </param>
     /// <returns>True if a link can be created, false if it cannot.</returns>
     bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory);
@@ -85,6 +92,15 @@ public interface ICopyOnWriteFilesystem
     /// The link attempt failed because a filesystem limit on the number of clones per file was exceeded. See <see cref="MaxClonesPerFile"/>.
     /// </exception>
     void CloneFile(string source, string destination, CloneFlags cloneFlags);
+
+    /// <summary>
+    /// Clears and recreates internal cached information about the computer's filesystem.
+    /// For performance, the copy-on-write filesystem implementations cache filesystem layout
+    /// information instead of making kernel calls on each call to determine the filesystem layout.
+    /// If the filesystem has changed after creation of the cached information, e.g. if
+    /// a volume or mount point was added or removed, the cached information can be out of date.
+    /// </summary>
+    void ClearFilesystemCache();
 }
 
 /// <summary>

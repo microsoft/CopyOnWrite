@@ -32,6 +32,8 @@ if (canCloneInCurrentDirectory)
 ## Release History
 [NuGet package](https://www.nuget.org/packages/CopyOnWrite):
 
+* 0.1.9 September 2022: Add explicit cache invalidation call to interface.
+  Update Windows implementation to detect ReFS mount points that are not drive roots, e.g. mounting D:\ (ReFS volume) under C:\ReFS.
 * 0.1.8 April 2022: Add overload for CoW clone to allow bypassing some Windows filesystem feature checks
 * 0.1.7 April 2022: Perf improvement for Windows CoW link creation by reducing kernel round-trips
 * 0.1.6 April 2022: Perf improvement for all Windows APIs
@@ -100,3 +102,11 @@ Same benchmark performed on a ReFS partition (no VHD) on an M.2 SSD:
 
 ## Contributing
 This project welcomes contributions and suggestions. See CONTRIBUTING.md.
+
+### Running Unit Tests on Windows
+If you have a local ReFS drive volume on which to run ReFS related tests, set the following user or system level environment variable:
+
+  `CoW_Test_ReFS_Drive=D:\`
+
+(You may need to exit and restart VS, VSCode, or consoles after setting this.)
+When this env var is not available, unit tests create and mount a local ReFS VHD for testing, and require admin permissions.
