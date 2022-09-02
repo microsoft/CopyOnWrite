@@ -31,7 +31,6 @@ jobs:
           echo FORMAT FS=ReFS LABEL="ReFS Test" >>DiskPartScript.txt
           echo ASSIGN LETTER=E                  >>DiskPartScript.txt
           echo LIST VOLUME                      >>DiskPartScript.txt
-          echo SELECT VOLUME 4                  >>DiskPartScript.txt
           echo ASSIGN MOUNT=C:\ReFS             >>DiskPartScript.txt
 
           diskpart /s DiskPartScript.txt
