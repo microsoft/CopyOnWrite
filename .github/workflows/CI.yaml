@@ -25,14 +25,14 @@ jobs:
           mkdir c:\ReFS
           dir c:\
 
-          echo SELECT VOLUME C:                  >DiskPartScript.txt
-          echo SHRINK DESIRED=10240             >>DiskPartScript.txt
-          echo CREATE PARTITION PRIMARY         >>DiskPartScript.txt
-          echo LIST PARTITION                   >>DiskPartScript.txt
-          echo FORMAT FS=ReFS LABEL="ReFS Test" >>DiskPartScript.txt
-          echo ASSIGN LETTER=E                  >>DiskPartScript.txt
-          echo LIST VOLUME                      >>DiskPartScript.txt
-          echo ASSIGN MOUNT=C:\ReFS             >>DiskPartScript.txt
+          echo SELECT VOLUME C:                          >DiskPartScript.txt
+          echo SHRINK DESIRED=10240                     >>DiskPartScript.txt
+          echo CREATE PARTITION PRIMARY                 >>DiskPartScript.txt
+          echo LIST PARTITION                           >>DiskPartScript.txt
+          echo FORMAT QUICK FS=ReFS LABEL="ReFS Test"   >>DiskPartScript.txt
+          echo ASSIGN LETTER=E                          >>DiskPartScript.txt
+          echo LIST VOLUME                              >>DiskPartScript.txt
+          echo ASSIGN MOUNT=C:\ReFS                     >>DiskPartScript.txt
 
           diskpart /s DiskPartScript.txt
           if not exist E:\ echo ERROR: diskpart failed && exit /b 1
@@ -40,6 +40,9 @@ jobs:
 
           @rem CODESYNC: WindowsReFSDriveSession.cs
           SETX CoW_Test_ReFS_Drive E:\
+          set
+          set CoW_Test_ReFS_Drive=E:\
+
           exit /b 0
         shell: cmd
       - run: dotnet test --no-restore
