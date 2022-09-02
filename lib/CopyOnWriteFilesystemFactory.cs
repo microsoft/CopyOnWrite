@@ -2,6 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using Microsoft.CopyOnWrite.Linux;
+using Microsoft.CopyOnWrite.Mac;
+using Microsoft.CopyOnWrite.Windows;
 
 namespace Microsoft.CopyOnWrite;
 

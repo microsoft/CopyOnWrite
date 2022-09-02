@@ -10,7 +10,7 @@ using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
-namespace Microsoft.CopyOnWrite;
+namespace Microsoft.CopyOnWrite.Windows;
 
 /// <summary>
 /// Windows version. Uses an internal cache, hence assumes drive letters are non-removable or

@@ -13,6 +13,9 @@
 
   <ItemGroup>
     <Compile Include="../*.cs" />
+    <Compile Include="../Windows/*.cs" />
+    <Compile Include="../Linux/*.cs" />
+    <Compile Include="../Mac/*.cs" />
   </ItemGroup>
 
   <ItemGroup>

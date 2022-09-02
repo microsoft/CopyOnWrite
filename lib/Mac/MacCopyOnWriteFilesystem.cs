@@ -3,7 +3,7 @@
 
 using System;
 
-namespace Microsoft.CopyOnWrite;
+namespace Microsoft.CopyOnWrite.Mac;
 
 internal sealed class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 {

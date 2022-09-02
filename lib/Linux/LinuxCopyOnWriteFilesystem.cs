@@ -3,7 +3,7 @@
 
 using System;
 
-namespace Microsoft.CopyOnWrite;
+namespace Microsoft.CopyOnWrite.Linux;
 
 internal sealed class LinuxCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 {

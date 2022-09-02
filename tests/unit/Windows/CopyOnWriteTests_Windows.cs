@@ -7,9 +7,10 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CopyOnWrite.TestUtilities;
+using Microsoft.CopyOnWrite.Windows;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Microsoft.CopyOnWrite.Tests;
+namespace Microsoft.CopyOnWrite.Tests.Windows;
 
 // E.g. dotnet test --filter TestCategory=Windows
 [TestClass]
