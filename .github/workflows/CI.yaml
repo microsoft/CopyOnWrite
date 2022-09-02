@@ -28,7 +28,6 @@ jobs:
           echo SHRINK DESIRED=10240             >>DiskPartScript.txt
           echo CREATE PARTITION PRIMARY         >>DiskPartScript.txt
           echo LIST PARTITION                   >>DiskPartScript.txt
-          echo SELECT PARTITION 5               >>DiskPartScript.txt
           echo FORMAT FS=ReFS LABEL=ReFS Test   >>DiskPartScript.txt
           echo ASSIGN LETTER=E                  >>DiskPartScript.txt
           echo LIST VOLUME                      >>DiskPartScript.txt
