@@ -224,4 +224,13 @@ internal static class NativeMethods
         [Out] StringBuilder volPathNames,
         int cBuff,
         [Out] out int retLength);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetVolumePathNamesForVolumeName(
+        string lpszVolumeName,
+        IntPtr lpszVolumePathNames,
+        int cchBufferLength,
+        out int lpcchReturnLength);
 }

@@ -45,8 +45,6 @@ internal sealed class VolumePaths
 /// </summary>
 internal sealed class VolumeEnumerator : IDisposable
 {
-    private static readonly char[] NullChar = { '\0' };
-
     private SafeVolumeFindHandle? _findHandle;
 
     public void Dispose()
@@ -68,43 +66,60 @@ internal sealed class VolumeEnumerator : IDisposable
         }
     }
 
-    private static string[] GetVolumePathNamesForVolumeName(string volumeName)
+    private static IReadOnlyList<string> GetVolumePathNamesForVolumeName(string volumeName)
     {
-        int bufferLen = 4; // Typical case: Drive letter plus null string. Eg: C:\
-        var volumePathNamesSb = new StringBuilder(bufferLen);
-
-        bool success = NativeMethods.GetVolumePathNamesForVolumeName(
-            volumeName,
-            volumePathNamesSb,
-            bufferLen,
-            out int reqBufferLen);
-        if (!success)
+        int bufferLenChars = 5; // Typical case: Drive root like "C:\" plus null character plus one (for some reason).
+        IntPtr lpszVolumePathNames = Marshal.AllocHGlobal(sizeof(char) * bufferLenChars);
+        try
         {
-            int lastErr = Marshal.GetLastWin32Error();
-            if (lastErr != NativeMethods.ERROR_MORE_DATA)
-            {
-                throw new Win32Exception(lastErr,
-                    $"GetVolumePathNamesForVolumeName({volumeName}) failed with Win32 error code {lastErr}");
-            }
-
-            // Increase the buffer size and call again.
-            bufferLen = reqBufferLen;
-            volumePathNamesSb.Capacity = reqBufferLen;
-            success = NativeMethods.GetVolumePathNamesForVolumeName(
+            bool success = NativeMethods.GetVolumePathNamesForVolumeName(
                 volumeName,
-                volumePathNamesSb,
-                bufferLen,
-                out _);
+                lpszVolumePathNames,
+                bufferLenChars,
+                out int returnedBufLenChars);
             if (!success)
             {
-                lastErr = Marshal.GetLastWin32Error();
-                throw new Win32Exception(lastErr,
-                    $"GetVolumePathNamesForVolumeName({volumeName}) failed with Win32 error code {lastErr} on 2nd attempt");
-            }
-        }
+                int lastErr = Marshal.GetLastWin32Error();
+                if (lastErr != NativeMethods.ERROR_MORE_DATA)
+                {
+                    throw new Win32Exception(lastErr,
+                        $"GetVolumePathNamesForVolumeName({volumeName}) failed with Win32 error code {lastErr}");
+                }
 
-        // Split the output buffer into individual strings.
-        return volumePathNamesSb.ToString().Split(NullChar, StringSplitOptions.RemoveEmptyEntries);
+                // Increase the buffer size and call again.
+                bufferLenChars = returnedBufLenChars + 2;  // Add more space at tail to ensure we get all data from API.
+                Marshal.FreeHGlobal(lpszVolumePathNames);
+                lpszVolumePathNames = Marshal.AllocHGlobal(sizeof(char) * bufferLenChars);
+                success = NativeMethods.GetVolumePathNamesForVolumeName(
+                    volumeName,
+                    lpszVolumePathNames,
+                    bufferLenChars,
+                    out returnedBufLenChars);
+                if (!success)
+                {
+                    Marshal.FreeHGlobal(lpszVolumePathNames);
+                    lastErr = Marshal.GetLastWin32Error();
+                    throw new Win32Exception(lastErr,
+                        $"GetVolumePathNamesForVolumeName({volumeName}) failed with Win32 error code {lastErr} on 2nd attempt");
+                }
+            }
+
+            // Split the output buffer into individual strings.
+            var volumePathNames = new List<string>();
+            int charsProcessed = 0;
+            while ((charsProcessed + 1) < returnedBufLenChars)
+            {
+                string volumePathName = Marshal.PtrToStringAuto(lpszVolumePathNames + (sizeof(char) * charsProcessed))!;
+                volumePathNames.Add(volumePathName);
+                charsProcessed += (volumePathName.Length + 1);
+            }
+
+            return volumePathNames;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(lpszVolumePathNames);
+        }
     }
 
     /// <summary>

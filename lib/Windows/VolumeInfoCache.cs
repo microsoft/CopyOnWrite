@@ -21,6 +21,8 @@ internal sealed class VolumeInfoCache
         public readonly VolumeInfo Volume;
     }
 
+    private static readonly char[] Backslash = { '\\' };
+
     // A cheap 1-level trie to reduce string comparisons.
     private readonly SubPathAndVolume[][] _driveLetterSubPathsSortedInReverseOrder;
 
@@ -49,9 +51,15 @@ internal sealed class VolumeInfoCache
         {
             foreach (string mountedPath in volumePaths.MountedAtPaths)
             {
+                string mountedPathNoBackslash = mountedPath;
+                if (mountedPath.Length > 3)
+                {
+                    mountedPathNoBackslash = mountedPath.TrimEnd(Backslash);
+                }
+
                 int letterIndex = IndexFromDriveLetter(mountedPath[0]);
                 SubPathAndVolume[] existingPaths = _driveLetterSubPathsSortedInReverseOrder[letterIndex];
-                var newRef = new SubPathAndVolume(mountedPath, volumeInfo);
+                var newRef = new SubPathAndVolume(mountedPathNoBackslash, volumeInfo);
 
                 // Typical case is for one volume to be mounted at one drive letter root path.
                 if (existingPaths.Length == 0)

@@ -105,6 +105,12 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         // Create an empty destination file.
         using SafeFileHandle destFileHandle = NativeMethods.CreateFile(destination, FileAccess.Write,
             FileShare.Delete, IntPtr.Zero, FileMode.Create, FileAttributes.Normal, IntPtr.Zero);
+        if (destFileHandle.IsInvalid)
+        {
+            int lastErr = Marshal.GetLastWin32Error();
+            NativeMethods.ThrowSpecificIoException(lastErr,
+                $"Failed to create destination file '{destination}' with winerror {lastErr}");
+        }
 
         long sourceFileLength;
         if ((cloneFlags & CloneFlags.NoSparseFileCheck) != 0)
