@@ -32,6 +32,9 @@ if (canCloneInCurrentDirectory)
 ## Release History
 [NuGet package](https://www.nuget.org/packages/CopyOnWrite):
 
+* 0.1.10 September 2022: Fix missing destination file failure detection.
+* 0.1.9 September 2022: Add explicit cache invalidation call to interface.
+  Update Windows implementation to detect ReFS mount points that are not drive roots, e.g. mounting D:\ (ReFS volume) under C:\ReFS.
 * 0.1.8 April 2022: Add overload for CoW clone to allow bypassing some Windows filesystem feature checks
 * 0.1.7 April 2022: Perf improvement for Windows CoW link creation by reducing kernel round-trips
 * 0.1.6 April 2022: Perf improvement for all Windows APIs
@@ -41,6 +44,19 @@ if (canCloneInCurrentDirectory)
 * 0.1.2 October 2021: Performance fixes for Windows. Mac and Linux throw NotSupportedException.
 * 0.1.1 October 2021: Bug fixes for Windows. Mac and Linux throw NotSupportedException.
 * 0.1.0 July 2021: Windows ReFS support. Mac and Linux throw NotSupportedException.
+
+
+## Contributing
+This project welcomes contributions and suggestions. See CONTRIBUTING.md.
+
+### Running Unit Tests on Windows
+If you have a local ReFS drive volume on which to run ReFS related tests, set the following user or system level environment variable:
+
+  `CoW_Test_ReFS_Drive=D:\`
+
+(You may need to exit and restart VS, VSCode, or consoles after setting this.)
+When this env var is not available, unit tests create and mount a local ReFS VHD for testing.
+You must run tests elevated (as admin), e.g. by opening Visual Studio as an admin before opening the solution.
 
 
 ## Performance Comparisons
@@ -97,6 +113,3 @@ Same benchmark performed on a ReFS partition (no VHD) on an M.2 SSD:
 |           |          |            |           |           |            |       |         |
 | File.Copy | 16777216 | 240.713 ms | 4.7471 ms | 6.6547 ms | 240.357 ms |  1.00 |    0.00 |
 |       CoW | 16777216 |   7.291 ms | 0.3910 ms | 1.1217 ms |   7.070 ms |  0.03 |    0.01 |
-
-## Contributing
-This project welcomes contributions and suggestions. See CONTRIBUTING.md.

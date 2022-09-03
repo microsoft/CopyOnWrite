@@ -10,27 +10,48 @@ using System.Threading;
 namespace Microsoft.CopyOnWrite.TestUtilities;
 
 /// <summary>
-/// A disposable wrapper around creation and cleanup of a ReFS filesystem in
-/// a VHD. Requires admin/elevated execution context.
+/// A disposable wrapper around either use of a predefined local drive if configured
+/// in the environment, or creation and cleanup of a ReFS filesystem in a VHD.
+/// VHD creation requires admin/elevated execution context.
 /// </summary>
-public class WindowsReFsVhdSession : IDisposable
+public class WindowsReFsDriveSession : IDisposable
 {
     private readonly char _vhdDriveLetter;
-    private readonly string _removeVhdScriptPath;
+    private readonly string? _removeVhdScriptPath;
 
-    private WindowsReFsVhdSession(char vhdDriveLetter, string removeVhdScriptPath)
+    private WindowsReFsDriveSession(char vhdDriveLetter, string? removeVhdScriptPath, string testRelativeDir)
     {
         _vhdDriveLetter = vhdDriveLetter;
         _removeVhdScriptPath = removeVhdScriptPath;
         ReFsDriveRoot = $@"{vhdDriveLetter}:\";
+        TestRootDir = Path.Combine(ReFsDriveRoot, "CoWTests", Guid.NewGuid().ToString().Substring(0, 8), testRelativeDir);
+        Directory.CreateDirectory(TestRootDir);
     }
 
     /// <summary>
-    /// Creates a session by mounting a ReFS drive as a VHD.
-    /// Dispose the returned object to clean up the drive.
+    /// Gets the fully qualified drive root for this session, e.g. "D:\".
     /// </summary>
-    public static WindowsReFsVhdSession Create()
+    public string ReFsDriveRoot { get; }
+
+    /// <summary>
+    /// Gets the pre-created test root directory configured for this session.
+    /// </summary>
+    public string TestRootDir { get; }
+
+    /// <summary>
+    /// Creates a session by using the configured pre-created ReFS volume or by mounting a ReFS drive as a VHD.
+    /// Dispose the returned object to clean up the drive and/or test root.
+    /// </summary>
+    public static WindowsReFsDriveSession Create(string relativeTestRootDir)
     {
+        // Allow short-circuiting for CI environment and machines with locally created ReFS drives.
+        // CODESYNC: .github/workflows/CI.yaml
+        string? preCreatedReFsDriveRoot = Environment.GetEnvironmentVariable("CoW_Test_ReFS_Drive");
+        if (!string.IsNullOrEmpty(preCreatedReFsDriveRoot))
+        {
+            return new WindowsReFsDriveSession(preCreatedReFsDriveRoot[0], null, relativeTestRootDir);
+        }
+        
         var driveLetterHashSet = new HashSet<char>();
         foreach (DriveInfo driveInfo in DriveInfo.GetDrives())
         {
@@ -75,18 +96,17 @@ public class WindowsReFsVhdSession : IDisposable
         // Wait a moment for the drive mount to stabilize. A new Explorer window often opens and the first CoW link can fail.
         Thread.Sleep(1000);
         
-        return new WindowsReFsVhdSession(openDriveLetter, removeVhdScriptPath);
+        return new WindowsReFsDriveSession(openDriveLetter, removeVhdScriptPath, relativeTestRootDir);
     }
 
     public void Dispose()
     {
-        RunPowershellScript(_removeVhdScriptPath, $"{_vhdDriveLetter}");
+        Directory.Delete(TestRootDir, recursive: true);
+        if (_removeVhdScriptPath != null)
+        {
+            RunPowershellScript(_removeVhdScriptPath, $"{_vhdDriveLetter}");
+        }
     }
-
-    /// <summary>
-    /// Gets the fully qualified drive root for this session, e.g. "D:\".
-    /// </summary>
-    public string ReFsDriveRoot { get; }
 
     private static void RunPowershellScript(string scriptPath, string args)
     {

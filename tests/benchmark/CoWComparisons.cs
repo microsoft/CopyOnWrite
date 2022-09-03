@@ -16,7 +16,7 @@ public class CoWComparisons
 
     // Static to avoid multiple drives being created during benchmark and to allow control
     // of call to Dispose().
-    public static WindowsReFsVhdSession? ReFsVhdSession;
+    public static WindowsReFsDriveSession? ReFsVhdSession;
 
     public long[] FileSizesBytes { get; } =
     {
@@ -52,7 +52,7 @@ public class CoWComparisons
         string testRootDir;
         if (OsHelper.IsWindows)
         {
-            //ReFsVhdSession = WindowsReFsVhdSession.Create();
+            //ReFsVhdSession = WindowsReFsDriveSession.Create();
             //testRootDir = ReFsVhdSession.ReFsDriveRoot;
             testRootDir = @"d:\cowcompare";
         }

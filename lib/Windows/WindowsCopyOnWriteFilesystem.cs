@@ -2,9 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using System.ComponentModel;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
@@ -16,22 +14,10 @@ namespace Microsoft.CopyOnWrite.Windows;
 /// </summary>
 internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 {
-    private class DriveVolumeInfo
-    {
-        public DriveVolumeInfo(bool supportsCoW, long clusterSize)
-        {
-            SupportsCoW = supportsCoW;
-            ClusterSize = clusterSize;
-        }
-
-        public bool SupportsCoW { get; }
-        public long ClusterSize { get; }
-    }
-
     // Each cloned region must be < 4GB in length. Use a smaller default.
     internal const long MaxChunkSize = 1L << 31;  // 2GB
 
-    private readonly DriveVolumeInfo?[] _driveLetterInfos = new DriveVolumeInfo?[26];
+    private VolumeInfoCache _volumeInfoCache = VolumeInfoCache.BuildFromCurrentFilesystem();
 
     // https://docs.microsoft.com/en-us/windows-server/storage/refs/block-cloning#functionality-restrictions-and-remarks
     /// <inheritdoc />
@@ -54,31 +40,15 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             return false;
         }
 
-        char sourceDriveLetter = resolvedSource[0];
-        int sourceDriveIndex = IndexFromDriveLetter(sourceDriveLetter);
-        int destDriveIndex = IndexFromDriveLetter(resolvedDestination[0]);
-
-        // Must be on the same filesystem volume (drive letter).
-        // TODO: This does not handle a subst'd drive letter pointing to the same original volume.
-        if (sourceDriveIndex != destDriveIndex)
+        // Must be in the same volume.
+        VolumeInfo sourceVolume = _volumeInfoCache.GetVolumeForPath(resolvedSource);
+        VolumeInfo destVolume = _volumeInfoCache.GetVolumeForPath(resolvedDestination);
+        if (!ReferenceEquals(sourceVolume, destVolume))
         {
             return false;
         }
 
-        DriveVolumeInfo driveInfo = GetOrUpdateDriveVolumeInfo(sourceDriveLetter, sourceDriveIndex);
-        return driveInfo.SupportsCoW;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int IndexFromDriveLetter(char driveLetter)
-    {
-        int index = driveLetter - 'A';
-        if (index > 26)
-        {
-            index -= 32;  // Difference between 'A' and 'a'
-        }
-
-        return index;
+        return sourceVolume.SupportsCoW;
     }
 
     /// <inheritdoc />
@@ -90,10 +60,8 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             return false;
         }
 
-        char sourceDriveLetter = resolvedSource[0];
-        int sourceDriveIndex = IndexFromDriveLetter(sourceDriveLetter);
-        DriveVolumeInfo driveInfo = GetOrUpdateDriveVolumeInfo(sourceDriveLetter, sourceDriveIndex);
-        return driveInfo.SupportsCoW;
+        VolumeInfo volumeInfo = _volumeInfoCache.GetVolumeForPath(resolvedSource);
+        return volumeInfo.SupportsCoW;
     }
 
     /// <inheritdoc />
@@ -114,12 +82,10 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             throw new NotSupportedException($"Source path '{source}' is not in the correct format");
         }
 
-        char sourceDriveLetter = resolvedSource[0];
-        int sourceDriveIndex = IndexFromDriveLetter(sourceDriveLetter);
-        DriveVolumeInfo driveInfo = GetOrUpdateDriveVolumeInfo(sourceDriveLetter, sourceDriveIndex);
-        if (!driveInfo.SupportsCoW)
+        VolumeInfo sourceVolume = _volumeInfoCache.GetVolumeForPath(resolvedSource);
+        if (!sourceVolume.SupportsCoW)
         {
-            throw new NotSupportedException($@"Drive volume {sourceDriveLetter}:\ does not support copy-on-write clone links, e.g. is not formatted with ReFS");
+            throw new NotSupportedException($@"Drive volume {sourceVolume.PrimaryDriveLetterRoot} does not support copy-on-write clone links, i.e. is not formatted with ReFS");
         }
 
         // Get an open file handle to the source file.
@@ -130,15 +96,21 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             int lastErr = Marshal.GetLastWin32Error();
             if (lastErr == NativeMethods.ERROR_PATH_NOT_FOUND && Directory.Exists(resolvedSource))
             {
-                lastErr = NativeMethods.ERROR_INVALID_HANDLE;
+                lastErr = NativeMethods.ERROR_ACCESS_DENIED;
             }
-            ThrowSpecificIoException(lastErr,
+            NativeMethods.ThrowSpecificIoException(lastErr,
                 $"Failed to open file with winerror {lastErr} for source file '{resolvedSource}'");
         }
 
         // Create an empty destination file.
         using SafeFileHandle destFileHandle = NativeMethods.CreateFile(destination, FileAccess.Write,
             FileShare.Delete, IntPtr.Zero, FileMode.Create, FileAttributes.Normal, IntPtr.Zero);
+        if (destFileHandle.IsInvalid)
+        {
+            int lastErr = Marshal.GetLastWin32Error();
+            NativeMethods.ThrowSpecificIoException(lastErr,
+                $"Failed to create destination file '{destination}' with winerror {lastErr}");
+        }
 
         long sourceFileLength;
         if ((cloneFlags & CloneFlags.NoSparseFileCheck) != 0)
@@ -147,7 +119,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             if (!NativeMethods.GetFileSizeEx(sourceFileHandle, out sourceFileLength))
             {
                 int lastErr = Marshal.GetLastWin32Error();
-                ThrowSpecificIoException(lastErr,
+                NativeMethods.ThrowSpecificIoException(lastErr,
                     $"Failed to get file info with winerror {lastErr} for source file '{resolvedSource}'");
             }
         }
@@ -157,7 +129,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             if (!NativeMethods.GetFileInformationByHandle(sourceFileHandle, ref fileInfo))
             {
                 int lastErr = Marshal.GetLastWin32Error();
-                ThrowSpecificIoException(lastErr,
+                NativeMethods.ThrowSpecificIoException(lastErr,
                     $"Failed to get file info with winerror {lastErr} for source file '{resolvedSource}'");
             }
 
@@ -179,7 +151,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                         IntPtr.Zero))
                 {
                     int lastErr = Marshal.GetLastWin32Error();
-                    ThrowSpecificIoException(lastErr,
+                    NativeMethods.ThrowSpecificIoException(lastErr,
                         $"Failed to set file sparseness with winerror {lastErr} for destination file '{destination}'");
                 }
             }
@@ -201,7 +173,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                 IntPtr.Zero))
             {
                 int lastErr = Marshal.GetLastWin32Error();
-                ThrowSpecificIoException(lastErr,
+                NativeMethods.ThrowSpecificIoException(lastErr,
                     $"Failed to get integrity information with winerror {lastErr} from source file '{source}'");
             }
 
@@ -224,7 +196,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                         IntPtr.Zero))
                 {
                     int lastErr = Marshal.GetLastWin32Error();
-                    ThrowSpecificIoException(lastErr,
+                    NativeMethods.ThrowSpecificIoException(lastErr,
                         $"Failed to set integrity information with winerror {lastErr} on destination file '{destination}'");
                 }
             }
@@ -236,7 +208,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                 ref fileSizeInfo, NativeMethods.SizeOfFileEndOfFileInfo))
         {
             int lastErr = Marshal.GetLastWin32Error();
-            ThrowSpecificIoException(lastErr,
+            NativeMethods.ThrowSpecificIoException(lastErr,
                 $"Failed to set end of file with winerror {lastErr} on destination file '{destination}'");
         }
 
@@ -247,7 +219,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 
         // ReFS requires that cloned regions reside on a disk cluster boundary.
         long fileSizeRoundedUpToClusterBoundary =
-            RoundUpToPowerOf2(sourceFileLength, driveInfo.ClusterSize);
+            RoundUpToPowerOf2(sourceFileLength, sourceVolume.ClusterSize);
         long sourceOffset = 0;
         while (sourceOffset < sourceFileLength)
         {
@@ -278,7 +250,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                         "See https://docs.microsoft.com/en-us/windows-server/storage/refs/block-cloning#functionality-restrictions-and-remarks";
                 }
 
-                ThrowSpecificIoException(lastErr,
+                NativeMethods.ThrowSpecificIoException(lastErr,
                     $"Failed copy-on-write cloning with winerror {lastErr} from source file '{source}' to '{destination}'.{additionalMessage}");
             }
 
@@ -286,78 +258,15 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         }
     }
 
-    private static void ThrowSpecificIoException(int lastErr, string message)
+    public void ClearFilesystemCache()
     {
-        throw lastErr switch
-        {
-            NativeMethods.ERROR_FILE_NOT_FOUND => new FileNotFoundException(message),
-            NativeMethods.ERROR_PATH_NOT_FOUND => new DirectoryNotFoundException(message),
-            NativeMethods.ERROR_INVALID_HANDLE => new UnauthorizedAccessException(message),
-            NativeMethods.ERROR_BLOCK_TOO_MANY_REFERENCES => new MaxCloneFileLinksExceededException(message),
-            _ => new Win32Exception(lastErr, message)
-        };
-    }
-
-    private DriveVolumeInfo GetOrUpdateDriveVolumeInfo(char driveLetter, int driveIndex)
-    {
-        DriveVolumeInfo? d = _driveLetterInfos[driveIndex];
-        if (d != null)
-        {
-            return d;
-        }
-
-        // Multiple threads can race to retrieve and set info, extras will be dropped in GC.
-        d = GetDriveVolumeInfo(driveLetter);
-        _driveLetterInfos[driveIndex] = d;
-        return d;
+        _volumeInfoCache = VolumeInfoCache.BuildFromCurrentFilesystem();
     }
 
     internal static long RoundUpToPowerOf2(long originalValue, long roundingMultiplePowerOf2)
     {
         long mask = roundingMultiplePowerOf2 - 1;
         return (originalValue + mask) & ~mask;
-    }
-
-    private static DriveVolumeInfo GetDriveVolumeInfo(char driveLetter)
-    {
-        return GetDriveVolumeInfo($@"{driveLetter}:\");
-    }
-
-    // driveRootPath in the form "C:\".
-    private static DriveVolumeInfo GetDriveVolumeInfo(string driveRootPath)
-    {
-        bool result = NativeMethods.GetVolumeInformation(
-            driveRootPath,
-            null,
-            0,
-            out uint _,
-            out uint _,
-            out NativeMethods.FileSystemFeature featureFlags,
-            null,
-            0);
-        if (!result)
-        {
-            int lastErr = Marshal.GetLastWin32Error();
-            ThrowSpecificIoException(lastErr,
-                $"Failed retrieving drive volume information for {driveRootPath} with winerror {lastErr}");
-        }
-
-        result = NativeMethods.GetDiskFreeSpace(
-            driveRootPath,
-            out ulong sectorsPerCluster,
-            out ulong bytesPerSector,
-            out ulong _,
-            out ulong _);
-        if (!result)
-        {
-            int lastErr = Marshal.GetLastWin32Error();
-            ThrowSpecificIoException(lastErr,
-                $"Failed retrieving drive volume cluster layout information for {driveRootPath} with winerror {lastErr}");
-        }
-
-        return new DriveVolumeInfo(
-            (featureFlags & NativeMethods.FileSystemFeature.BlockRefcounting) != 0,
-            (long)(sectorsPerCluster * bytesPerSector));
     }
 
     private static (string, bool) ResolvePathAndEnsureDriveLetterVolume(string path)

@@ -27,4 +27,9 @@ internal sealed class LinuxCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         // TODO: Use ficlone().
         throw new NotImplementedException();
     }
+
+    public void ClearFilesystemCache()
+    {
+        throw new NotImplementedException();
+    }
 }

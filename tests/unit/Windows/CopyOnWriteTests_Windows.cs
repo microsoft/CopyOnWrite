@@ -15,6 +15,7 @@ namespace Microsoft.CopyOnWrite.Tests.Windows;
 // E.g. dotnet test --filter TestCategory=Windows
 [TestClass]
 [TestCategory("Windows")]
+[DoNotParallelize]  // Ensure the 32-bit and 64-bit suites do not collide.
 public sealed class CopyOnWriteTests_Windows
 {
     [TestMethod]
@@ -78,16 +79,16 @@ public sealed class CopyOnWriteTests_Windows
     [DataRow(CloneFlags.NoFileIntegrityCheck | CloneFlags.NoSparseFileCheck)]
     public async Task ReFSPositiveDetectionAndCloneFileCorrectBehavior(CloneFlags cloneFlags)
     {
-        using WindowsReFsVhdSession refs = WindowsReFsVhdSession.Create();
+        using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create($"{nameof(ReFSPositiveDetectionAndCloneFileCorrectBehavior)}({(int)cloneFlags})");
 
         var cow = new WindowsCopyOnWriteFilesystem();
-        string refsDriveRoot = refs.ReFsDriveRoot;
+        string refsTestRoot = refs.TestRootDir;
 
-        Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(refsDriveRoot));
+        Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(refsTestRoot));
 
-        string source1Path = Path.Combine(refsDriveRoot, "source1");
+        string source1Path = Path.Combine(refsTestRoot, "source1");
         await File.WriteAllTextAsync(source1Path, "AABBCCDD");
-        string dest1Path = Path.Combine(refsDriveRoot, "dest1");
+        string dest1Path = Path.Combine(refsTestRoot, "dest1");
 
         Assert.IsTrue(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path, dest1Path));
         Assert.IsTrue(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path.ToLowerInvariant(), dest1Path.ToUpperInvariant()));
@@ -107,7 +108,7 @@ public sealed class CopyOnWriteTests_Windows
         Assert.AreEqual("AABBCCDD", dest1Contents);
 
         // Clone a clone.
-        string dest2Path = Path.Combine(refsDriveRoot, "dest2");
+        string dest2Path = Path.Combine(refsTestRoot, "dest2");
         cow.CloneFile(dest1Path, dest2Path, cloneFlags);
         Assert.IsTrue(File.Exists(dest2Path));
         var dest2FI = new FileInfo(dest2Path);
@@ -127,7 +128,7 @@ public sealed class CopyOnWriteTests_Windows
         Assert.AreEqual("AABBCCDD", dest2Contents);
 
         // Create and clone a large file onto previously created clones.
-        string largeSourcePath = Path.Combine(refsDriveRoot, "largeFile");
+        string largeSourcePath = Path.Combine(refsTestRoot, "largeFile");
         const long largeSourceSize = WindowsCopyOnWriteFilesystem.MaxChunkSize + 1024L;  // A bit above limit to force multiple chunk copies.
         Console.WriteLine($"Creating file with size {largeSourceSize}");
         await using (FileStream s = File.OpenWrite(largeSourcePath))
@@ -161,12 +162,87 @@ public sealed class CopyOnWriteTests_Windows
             Assert.AreEqual(0xDD, buffer[3]);
 
             // Other tests.
-            CloneFileDestinationIsDir(refsDriveRoot, cloneFlags);
-            CloneFileMissingSourceDir(refsDriveRoot, cloneFlags);
-            CloneFileMissingSourceFileInExistingDir(refsDriveRoot, cloneFlags);
-            CloneFileSourceIsDir(refsDriveRoot, cloneFlags);
-            await CloneFileExceedReFsLimitAsync(refsDriveRoot, cloneFlags);
-            await StressTestCloningAsync(refsDriveRoot, cloneFlags);
+            CloneFileDestinationIsDir(refsTestRoot, cloneFlags);
+            CloneFileMissingSourceDir(refsTestRoot, cloneFlags);
+            CloneFileMissingSourceFileInExistingDir(refsTestRoot, cloneFlags);
+            CloneFileSourceIsDir(refsTestRoot, cloneFlags);
+            await CloneFileExceedReFsLimitAsync(refsTestRoot, cloneFlags);
+            await StressTestCloningAsync(refsTestRoot, cloneFlags);
+        }
+    }
+
+    [TestMethod]
+    [TestCategory("Admin")]
+    public async Task ReFSMountAndCacheClearingBehavior()
+    {
+        const string testSubDir = nameof(ReFSMountAndCacheClearingBehavior);
+        using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create(testSubDir);
+
+        // Create a filesystem object before mounting the ReFS volume to allow cache semantics check.
+        var cowBeforeMount = new WindowsCopyOnWriteFilesystem();
+
+        // Mount the ReFS volume under the C: drive before creating a filesystem object that will read current filesystem state.
+        const string cDriveBaseTestDir = @"C:\CoWMountTest";
+        Directory.CreateDirectory(cDriveBaseTestDir);
+        try
+        {
+            using var cTestDir = new DisposableTempDirectory(cDriveBaseTestDir);
+            string mountPath = Path.Combine(cTestDir.Path, "mount");
+            Directory.CreateDirectory(mountPath);
+            string diskPartScriptPath = Path.Combine(cTestDir.Path, "DiskPartScript.txt");
+            await File.WriteAllTextAsync(diskPartScriptPath,
+                $"SELECT VOLUME {refs.ReFsDriveRoot}" + Environment.NewLine +
+                $"ASSIGN MOUNT={mountPath}");
+            ProcessExecutionUtilities.RunAndCaptureOutput("diskpart", $"/s {diskPartScriptPath}");
+            try
+            {
+                var cow = new WindowsCopyOnWriteFilesystem();
+
+                // C: drive (NTFS).
+                Assert.IsFalse(cow.CopyOnWriteLinkSupportedInDirectoryTree(@"C:\"));
+                Assert.IsFalse(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(@"C:\"));
+
+                // ReFS root.
+                Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(refs.ReFsDriveRoot));
+                Assert.IsTrue(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(refs.ReFsDriveRoot));
+
+                // Mount.
+                Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(mountPath));
+                Assert.IsFalse(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(mountPath), "Cached filesystem state should not show mount");
+
+                // Clear pre-mount FS instance cache and verify it sees current reality.
+                cowBeforeMount.ClearFilesystemCache();
+                Assert.IsTrue(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(mountPath));
+                Assert.IsFalse(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(@"C:\"));
+
+                // Should be able to clone between the mount and the drive since they are the same underlying volume.
+                string source1Path = Path.Combine(refs.TestRootDir, "source1");
+                await File.WriteAllTextAsync(source1Path, "AABBCCDD");
+                string destDir = Path.Combine(mountPath, testSubDir);
+                Directory.CreateDirectory(destDir);
+                string dest1Path = Path.Combine(destDir, "dest1");
+                Assert.IsTrue(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path, dest1Path));
+
+                cow.CloneFile(source1Path, dest1Path, CloneFlags.None);
+                Assert.IsTrue(File.Exists(dest1Path));
+                var source1FI = new FileInfo(source1Path);
+                Console.WriteLine($"source1 size {source1FI.Length}");
+                var dest1FI = new FileInfo(dest1Path);
+                Assert.AreEqual(source1FI.Length, dest1FI.Length);
+                string dest1Contents = await File.ReadAllTextAsync(dest1Path);
+                Assert.AreEqual("AABBCCDD", dest1Contents);
+            }
+            finally
+            {
+                await File.WriteAllTextAsync(diskPartScriptPath,
+                    $"SELECT VOLUME {refs.ReFsDriveRoot}" + Environment.NewLine +
+                    $"REMOVE MOUNT={mountPath}");
+                ProcessExecutionUtilities.RunAndCaptureOutput("diskpart", $"/s {diskPartScriptPath}");
+            }
+        }
+        finally
+        {
+            Directory.Delete(cDriveBaseTestDir, recursive: true);
         }
     }
 

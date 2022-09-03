@@ -30,4 +30,9 @@ internal sealed class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         // TODO: Use clonefile().
         throw new NotImplementedException();
     }
+
+    public void ClearFilesystemCache()
+    {
+        throw new NotImplementedException();
+    }
 }

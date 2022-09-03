@@ -20,12 +20,26 @@ jobs:
         # No "with: dotnet-version" specified -> use global.json
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
-      - name: Enable Hyper-V for ReFS VHD testing
-        # Hyper-V install wants to restart and pauses console, disable that.
-        # Attempts to test VM reboot in GitHub Actions were not fruitful.
-        # We would need Hyper-V baked into an image instead.
+      - name: Shrink C drive and create a ReFS E drive, then run tests
         run: |
-          DISM /Online /Enable-Feature /All /FeatureName:Microsoft-Hyper-V /NoRestart
-          if "%ERRORLEVEL%"=="3010" echo Expected 3010 exit code for pending reboot && exit /b 0
+          mkdir c:\ReFS
+          dir c:\
+
+          echo SELECT VOLUME C:                          >DiskPartScript.txt
+          echo SHRINK DESIRED=10240                     >>DiskPartScript.txt
+          echo CREATE PARTITION PRIMARY                 >>DiskPartScript.txt
+          echo LIST PARTITION                           >>DiskPartScript.txt
+          echo FORMAT QUICK FS=ReFS LABEL="ReFS Test"   >>DiskPartScript.txt
+          echo ASSIGN LETTER=E                          >>DiskPartScript.txt
+          echo LIST VOLUME                              >>DiskPartScript.txt
+          echo ASSIGN MOUNT=C:\ReFS                     >>DiskPartScript.txt
+
+          diskpart /s DiskPartScript.txt
+          if not exist E:\ echo ERROR: diskpart failed && exit /b 1
+          if not exist C:\ReFS echo ERROR: diskpart failed && exit /b 1
+
+          @rem CODESYNC: WindowsReFSDriveSession.cs
+          set CoW_Test_ReFS_Drive=E:\
+
+          dotnet test --no-restore
         shell: cmd
-      - run: dotnet test --no-restore

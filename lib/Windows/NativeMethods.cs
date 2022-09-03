@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.ComponentModel;
 using System.IO;
+using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
@@ -14,6 +16,20 @@ namespace Microsoft.CopyOnWrite.Windows;
 // ReSharper disable InconsistentNaming
 internal static class NativeMethods
 {
+    public static void ThrowSpecificIoException(int lastErr, string message)
+    {
+        throw lastErr switch
+        {
+            ERROR_FILE_NOT_FOUND => new FileNotFoundException(message),
+            ERROR_PATH_NOT_FOUND => new DirectoryNotFoundException(message),
+            ERROR_ACCESS_DENIED => new UnauthorizedAccessException(message),
+            ERROR_INVALID_HANDLE => new UnauthorizedAccessException(message),
+            ERROR_BLOCK_TOO_MANY_REFERENCES => new MaxCloneFileLinksExceededException(message),
+            _ => new Win32Exception(lastErr, message)
+        };
+    }
+
+
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     public static extern SafeFileHandle CreateFile(
@@ -135,7 +151,10 @@ internal static class NativeMethods
 
     public const int ERROR_FILE_NOT_FOUND = 2;
     public const int ERROR_PATH_NOT_FOUND = 3;
+    public const int ERROR_ACCESS_DENIED = 5;
     public const int ERROR_INVALID_HANDLE = 6;
+    public const int ERROR_NO_MORE_FILES = 18;
+    public const int ERROR_MORE_DATA = 234;
 
     // ReFS specific WinError codes.
     public const int ERROR_BLOCK_TOO_MANY_REFERENCES = 347;
@@ -174,4 +193,46 @@ internal static class NativeMethods
         public ushort Reserved;
         public uint Flags;
     }
+
+    /// <summary>
+    /// According to MSDN: http://msdn.microsoft.com/en-us/library/aa364994(v=vs.85).aspx
+    /// </summary>
+    public const int MAX_VOLUME_GUID_LENGTH = 50;
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern SafeVolumeFindHandle FindFirstVolume(
+        [Out] StringBuilder volumeName,
+        [In] uint bufferLength);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern bool FindNextVolume(
+        [In] SafeVolumeFindHandle hFindVolume,
+        [Out] StringBuilder volumeName,
+        [In] uint bufferLength);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+    public static extern bool FindVolumeClose([In] IntPtr handle);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetVolumePathNamesForVolumeName(
+        string deviceName,
+        [Out] StringBuilder volPathNames,
+        int cBuff,
+        [Out] out int retLength);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetVolumePathNamesForVolumeName(
+        string lpszVolumeName,
+        IntPtr lpszVolumePathNames,
+        int cchBufferLength,
+        out int lpcchReturnLength);
 }
