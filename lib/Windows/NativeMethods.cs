@@ -22,6 +22,7 @@ internal static class NativeMethods
         {
             ERROR_FILE_NOT_FOUND => new FileNotFoundException(message),
             ERROR_PATH_NOT_FOUND => new DirectoryNotFoundException(message),
+            ERROR_ACCESS_DENIED => new UnauthorizedAccessException(message),
             ERROR_INVALID_HANDLE => new UnauthorizedAccessException(message),
             ERROR_BLOCK_TOO_MANY_REFERENCES => new MaxCloneFileLinksExceededException(message),
             _ => new Win32Exception(lastErr, message)
@@ -150,6 +151,7 @@ internal static class NativeMethods
 
     public const int ERROR_FILE_NOT_FOUND = 2;
     public const int ERROR_PATH_NOT_FOUND = 3;
+    public const int ERROR_ACCESS_DENIED = 5;
     public const int ERROR_INVALID_HANDLE = 6;
     public const int ERROR_NO_MORE_FILES = 18;
     public const int ERROR_MORE_DATA = 234;

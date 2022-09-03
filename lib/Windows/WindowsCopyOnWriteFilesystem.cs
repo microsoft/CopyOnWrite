@@ -96,7 +96,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             int lastErr = Marshal.GetLastWin32Error();
             if (lastErr == NativeMethods.ERROR_PATH_NOT_FOUND && Directory.Exists(resolvedSource))
             {
-                lastErr = NativeMethods.ERROR_INVALID_HANDLE;
+                lastErr = NativeMethods.ERROR_ACCESS_DENIED;
             }
             NativeMethods.ThrowSpecificIoException(lastErr,
                 $"Failed to open file with winerror {lastErr} for source file '{resolvedSource}'");
