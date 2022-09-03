@@ -24,7 +24,7 @@ public class WindowsReFsDriveSession : IDisposable
         _vhdDriveLetter = vhdDriveLetter;
         _removeVhdScriptPath = removeVhdScriptPath;
         ReFsDriveRoot = $@"{vhdDriveLetter}:\";
-        TestRootDir = Path.Combine(ReFsDriveRoot, "CoWTests", Guid.NewGuid().ToString().Substring(0, 8), testRelativeDir));
+        TestRootDir = Path.Combine(ReFsDriveRoot, "CoWTests", Guid.NewGuid().ToString().Substring(0, 8), testRelativeDir);
         Directory.CreateDirectory(TestRootDir);
     }
 
