@@ -73,3 +73,14 @@ internal sealed class FileHelper
         return path.StartsWith(parentDir, EnvironmentHelper.PathComparison);
     }
 }
+
+internal static class FileHelperExtensions
+{
+    /// <summary>
+    /// Checks if path is subpath of the path.
+    /// </summary>
+    /// <param name="path">Given path to check if it's a subpath of <paramref name="parentDir"/>.</param>
+    /// <param name="parentDir">A relative or fully qualified path.</param>
+    /// <returns>True if path is subpath of parentDir, false otherwise.</returns>
+    public static bool IsSubpathOf(this string path, string parentDir) => FileHelper.IsSubpathOfPath(parentDir, path);
+}

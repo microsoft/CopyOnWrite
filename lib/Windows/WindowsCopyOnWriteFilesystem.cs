@@ -4,6 +4,8 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 
 namespace Microsoft.CopyOnWrite.Windows;
@@ -18,6 +20,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     internal const long MaxChunkSize = 1L << 31;  // 2GB
 
     private VolumeInfoCache _volumeInfoCache = VolumeInfoCache.BuildFromCurrentFilesystem();
+    private readonly LockSet<string> _sourcePathLockSet = new(StringComparer.OrdinalIgnoreCase);
 
     // https://docs.microsoft.com/en-us/windows-server/storage/refs/block-cloning#functionality-restrictions-and-remarks
     /// <inheritdoc />
@@ -75,6 +78,19 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     // Also see https://github.com/0xbadfca11/reflink/blob/master/reflink.cpp
     // (discussion in http://blog.dewin.me/2017/02/under-hood-how-does-refs-block-cloning.html).
     public void CloneFile(string source, string destination, CloneFlags cloneFlags)
+    {
+        CloneFileAsync(source, destination, cloneFlags, CancellationToken.None).GetAwaiter().GetResult();
+    }
+
+    public async
+#if NET6_0 || NETSTANDARD2_1
+    ValueTask
+#elif NETSTANDARD2_0
+    Task
+#else
+#error Target Framework not supported
+#endif
+        CloneFileAsync(string source, string destination, CloneFlags cloneFlags, CancellationToken cancellationToken)
     {
         (string resolvedSource, bool sourceOk) = ResolvePathAndEnsureDriveLetterVolume(source);
         if (!sourceOk)
@@ -141,14 +157,14 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                 // Set the destination to be sparse to match the source.
                 int numBytesReturned = 0;
                 if (!NativeMethods.DeviceIoControl(
-                        destFileHandle,
-                        NativeMethods.FSCTL_SET_SPARSE,
-                        null,
-                        0,
-                        null,
-                        0,
-                        ref numBytesReturned,
-                        IntPtr.Zero))
+                    destFileHandle,
+                    NativeMethods.FSCTL_SET_SPARSE,
+                    null,
+                    0,
+                    null,
+                    0,
+                    ref numBytesReturned,
+                    IntPtr.Zero))
                 {
                     int lastErr = Marshal.GetLastWin32Error();
                     NativeMethods.ThrowSpecificIoException(lastErr,
@@ -212,6 +228,38 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                 $"Failed to set end of file with winerror {lastErr} on destination file '{destination}'");
         }
 
+        LockSet<string>.LockHandle lockHandle;
+        if (!cloneFlags.HasFlag(CloneFlags.NoSerializedCloning))
+        {
+            lockHandle = await _sourcePathLockSet.AcquireAsync(resolvedSource);
+        }
+        else
+        {
+            lockHandle = new LockSet<string>.LockHandle();
+        }
+
+        try
+        {
+            DuplicateExtents(sourceFileHandle, destFileHandle, sourceFileLength, sourceVolume, source, destination);
+        }
+        finally
+        {
+            if (!cloneFlags.HasFlag(CloneFlags.NoSerializedCloning))
+            {
+                lockHandle.Dispose();
+            }
+        }
+    }
+
+    // Separate method to avoid error creating DUPLICATE_EXTENTS_DATA on stack in async method.
+    private void DuplicateExtents(
+        SafeFileHandle sourceFileHandle,
+        SafeFileHandle destFileHandle,
+        long sourceFileLength,
+        VolumeInfo sourceVolume,
+        string source,
+        string destination)
+    {
         var duplicateExtentsData = new NativeMethods.DUPLICATE_EXTENTS_DATA
         {
             FileHandle = sourceFileHandle,

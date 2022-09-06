@@ -4,13 +4,15 @@
 using System;
 using System.ComponentModel;
 using System.IO;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
 namespace Microsoft.CopyOnWrite.Windows;
+
+// UnmanagedType.AsAny obsolete
+#pragma warning disable 618
 
 // ReSharper disable NotAccessedField.Local
 // ReSharper disable InconsistentNaming
@@ -215,7 +217,6 @@ internal static class NativeMethods
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
     public static extern bool FindVolumeClose([In] IntPtr handle);
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
