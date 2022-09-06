@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CopyOnWrite.TestUtilities;
 using Microsoft.CopyOnWrite.Windows;
@@ -64,6 +64,16 @@ public sealed class CopyOnWriteTests_Windows
             {
                 Assert.IsTrue(ex.Message.Contains("is not formatted with ReFS", StringComparison.Ordinal));
             }
+
+            try
+            {
+                await cow.CloneFileAsync(sourceFilePath, destFilePath, CloneFlags.None, CancellationToken.None);
+                Assert.Fail("Expected exception on NTFS");
+            }
+            catch (NotSupportedException ex)
+            {
+                Assert.IsTrue(ex.Message.Contains("is not formatted with ReFS", StringComparison.Ordinal));
+            }
         }
         else
         {
@@ -77,6 +87,7 @@ public sealed class CopyOnWriteTests_Windows
     [DataRow(CloneFlags.NoFileIntegrityCheck)]
     [DataRow(CloneFlags.NoSparseFileCheck)]
     [DataRow(CloneFlags.NoFileIntegrityCheck | CloneFlags.NoSparseFileCheck)]
+    [DataRow(CloneFlags.NoSerializedCloning)]
     public async Task ReFSPositiveDetectionAndCloneFileCorrectBehavior(CloneFlags cloneFlags)
     {
         using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create($"{nameof(ReFSPositiveDetectionAndCloneFileCorrectBehavior)}({(int)cloneFlags})");
@@ -311,44 +322,57 @@ public sealed class CopyOnWriteTests_Windows
             Assert.AreEqual("ABC", await File.ReadAllTextAsync(testPath), testPath);
         }
 
-        Assert.ThrowsException<MaxCloneFileLinksExceededException>(() => cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{cow.MaxClonesPerFile}"), cloneFlags));
+        // Windows appears to be lazy in its accounting for clones: Sometimes we get unexpected success adding an additional clone.
+        // Try a few times to exceed the limit.
+        int iter = cow.MaxClonesPerFile;
+        Assert.ThrowsException<MaxCloneFileLinksExceededException>(() =>
+        {
+            while (true)
+            {
+                cow.CloneFile(sourceFilePath, Path.Combine(testSubDir, $"dest{iter}"), cloneFlags);
+                iter++;
+            }
+        });
     }
 
     private static async Task StressTestCloningAsync(string refsRoot, CloneFlags cloneFlags)
     {
         ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
 
-        const int numFiles = 3;
-        var tasks = new List<Task>(cow.MaxClonesPerFile * numFiles);
-        for (int file = 1; file <= numFiles; file++)
-        {
-            string stressFolder = Path.Combine(refsRoot, $"Stress{file}");
-            Directory.CreateDirectory(stressFolder);
-            string origFilePath = Path.Combine(stressFolder, "orig");
-            string content = $"1234abcd_{file}";
-            await File.WriteAllTextAsync(origFilePath, content);
+        int[] parallelismSettings = { 1, 2, Environment.ProcessorCount, 2 * Environment.ProcessorCount };
 
-            for (int i = 0; i < cow.MaxClonesPerFile; i++)
+        const int numFiles = 3;
+        foreach (int parallelism in parallelismSettings)
+        {
+            for (int file = 1; file <= numFiles; file++)
             {
-                var context = new StressIteration(file, i);
-                tasks.Add(Task.Run(async () =>
+                string stressFolder = Path.Combine(refsRoot, $"Stress{file}_par{parallelism}");
+                Directory.CreateDirectory(stressFolder);
+                string origFilePath = Path.Combine(stressFolder, "orig");
+                string content = $"1234abcd_{file}";
+                await File.WriteAllTextAsync(origFilePath, content);
+
+                try
                 {
-                    string testPath = Path.Combine(stressFolder, $"test{context.Index}");
-                    try
+                    Parallel.For(0, cow.MaxClonesPerFile, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, i =>
                     {
-                        cow.CloneFile(origFilePath, testPath, cloneFlags);
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new AssertFailedException($"{testPath} file {context.Round}", ex);
-                    }
-                    Assert.AreEqual(content, await File.ReadAllTextAsync(testPath), "{0} file {1}", testPath, context.Round);
-                }));
+                        string testPath = Path.Combine(stressFolder, $"test{i}_par{parallelism}_cloneflags{(int)cloneFlags}");
+                        try
+                        {
+                            cow.CloneFile(origFilePath, testPath, cloneFlags);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new AssertFailedException($"{testPath} file {i} parallelism {parallelism} CloneFlags {cloneFlags}", ex);
+                        }
+                        Assert.AreEqual(content, File.ReadAllText(testPath), "{0} file {1} parallelism {2} CloneFlags {3}", testPath, i, parallelism, cloneFlags);
+                    });
+                }
+                catch (AggregateException aggEx) when (cloneFlags.HasFlag(CloneFlags.NoSerializedCloning) && parallelism > 1)
+                {
+                    throw new AssertInconclusiveException("Windows CoW: Expected instability when disabling serialization on multithreaded tests", aggEx);
+                }
             }
         }
-
-        await Task.WhenAll(tasks);
     }
-
-    private record StressIteration(int Round, int Index);
 }

@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Microsoft.CopyOnWrite.Mac;
 
@@ -28,6 +30,19 @@ internal sealed class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     public void CloneFile(string source, string destination, CloneFlags cloneFlags)
     {
         // TODO: Use clonefile().
+        throw new NotImplementedException();
+    }
+
+    public
+#if NET6_0 || NETSTANDARD2_1
+    ValueTask
+#elif NETSTANDARD2_0
+    Task
+#else
+#error Target Framework not supported
+#endif
+    CloneFileAsync(string source, string destination, CloneFlags cloneFlags, CancellationToken cancellationToken)
+    {
         throw new NotImplementedException();
     }
 

@@ -92,7 +92,7 @@ internal sealed class VolumeInfoCache
         // under D:\ReFS, we want to match the deeper path.
         foreach (SubPathAndVolume spv in subPathsAndVolumes)
         {
-            if (FileHelper.IsSubpathOfPath(spv.SubPath, path))
+            if (path.IsSubpathOf(spv.SubPath))
             {
                 return spv.Volume;
             }

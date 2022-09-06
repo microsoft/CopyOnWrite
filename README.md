@@ -32,6 +32,7 @@ if (canCloneInCurrentDirectory)
 ## Release History
 [NuGet package](https://www.nuget.org/packages/CopyOnWrite):
 
+* 0.1.11 September 2022: Serialize Windows cloning on source path to work around ReFS limitation in multithreaded cloning.
 * 0.1.10 September 2022: Fix missing destination file failure detection.
 * 0.1.9 September 2022: Add explicit cache invalidation call to interface.
   Update Windows implementation to detect ReFS mount points that are not drive roots, e.g. mounting D:\ (ReFS volume) under C:\ReFS.
