@@ -139,26 +139,26 @@ public enum CloneFlags
     /// <summary>
     /// Default zero value, no behavior changes.
     /// </summary>
-    None,
+    None = 0,
 
     /// <summary>
     /// Skip check for and copy of Windows file integrity settings from source to destination.
     /// Use when the filesystem and file are known not to use integrity.
     /// Saves 1-2 kernel round-trips.
     /// </summary>
-    NoFileIntegrityCheck,
+    NoFileIntegrityCheck = 1,
 
     /// <summary>
     /// Skip check for Windows sparse file attribute and application of sparse setting in destination.
     /// Use when the filesystem and file are known not to be sparse.
     /// Saves time by allowing use of less expensive kernel APIs.
     /// </summary>
-    NoSparseFileCheck,
+    NoSparseFileCheck = 2,
 
     /// <summary>
     /// Skip serialized clone creation if the OS's CoW facility cannot handle multi-threaded clone calls
     /// in a stable way (Windows as of Server 2022 / Windows 11). Skip this check if you know that only
     /// one clone of a source file will be performed at a time to improve performance.
     /// </summary>
-    NoSerializedCloning,
+    NoSerializedCloning = 4,
 }
