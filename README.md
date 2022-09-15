@@ -75,6 +75,8 @@ ensure they are flushed to disk before performing parallel clones. The workaroun
 * 0.1.1 October 2021: Bug fixes for Windows. Mac and Linux throw NotSupportedException.
 * 0.1.0 July 2021: Windows ReFS support. Mac and Linux throw NotSupportedException.
 
+## Related Works
+* Rust CoW: https://github.com/nicokoch/reflink
 
 ## Contributing
 This project welcomes contributions and suggestions. See CONTRIBUTING.md.
