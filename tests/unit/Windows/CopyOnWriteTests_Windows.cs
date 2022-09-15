@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -90,9 +91,9 @@ public sealed class CopyOnWriteTests_Windows
     [DataRow(CloneFlags.None, false)]
     [DataRow(CloneFlags.None, true)]
     [DataRow(CloneFlags.NoFileIntegrityCheck, false)]
-    [DataRow(CloneFlags.NoSparseFileCheck, false)]
-    [DataRow(CloneFlags.NoFileIntegrityCheck | CloneFlags.NoSparseFileCheck, false)]
+    [DataRow(CloneFlags.DestinationMustMatchSourceSparseness, false)]
     [DataRow(CloneFlags.NoSerializedCloning, false)]
+    [DataRow(CloneFlags.PathIsFullyResolved, false)]
     public async Task ReFSPositiveDetectionAndCloneFileCorrectBehavior(CloneFlags cloneFlags, bool useCrossProcessLocks)
     {
         using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create($"{nameof(ReFSPositiveDetectionAndCloneFileCorrectBehavior)}({(int)cloneFlags})");
@@ -353,6 +354,9 @@ public sealed class CopyOnWriteTests_Windows
         const int numFiles = 3;
         foreach (int parallelism in parallelismSettings)
         {
+            Stopwatch sw = Stopwatch.StartNew();
+            int numClones = cow.MaxClonesPerFile;
+
             for (int file = 1; file <= numFiles; file++)
             {
                 string stressFolder = Path.Combine(refsRoot, $"Stress{file}_par{parallelism}");
@@ -363,7 +367,7 @@ public sealed class CopyOnWriteTests_Windows
 
                 try
                 {
-                    Parallel.For(0, cow.MaxClonesPerFile, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, i =>
+                    Parallel.For(0, numClones, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, i =>
                     {
                         string testPath = Path.Combine(stressFolder, $"test{i}_par{parallelism}_cloneflags{(int)cloneFlags}");
                         try
@@ -379,9 +383,11 @@ public sealed class CopyOnWriteTests_Windows
                 }
                 catch (AggregateException aggEx) when (cloneFlags.HasFlag(CloneFlags.NoSerializedCloning) && parallelism > 1)
                 {
-                    throw new AssertInconclusiveException("Windows CoW: Expected instability when disabling serialization on multithreaded tests", aggEx);
+                    throw new AssertInconclusiveException("Windows CoW: Expected instability when disabling serialization on multithreaded tests (https://github.com/microsoft/CopyOnWrite/issues/12)", aggEx);
                 }
             }
+
+            Console.WriteLine($"Stress: Parallelism {parallelism}, files {numFiles}, clones per file {numClones}: {sw.Elapsed.TotalMilliseconds:F3}ms");
         }
     }
 }

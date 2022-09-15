@@ -19,6 +19,8 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     // Each cloned region must be < 4GB in length. Use a smaller default.
     internal const long MaxChunkSize = 1L << 31;  // 2GB
 
+    private static readonly bool[] FalseBool = { false };
+
     private VolumeInfoCache _volumeInfoCache = VolumeInfoCache.BuildFromCurrentFilesystem();
     private readonly LockSet<string> _sourcePathLockSetForInProcessSerialization = new(StringComparer.OrdinalIgnoreCase);
     private readonly bool _useCrossProcessLocks;
@@ -110,9 +112,16 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             throw new NotSupportedException($@"Drive volume {sourceVolume.PrimaryDriveLetterRoot} does not support copy-on-write clone links, i.e. is not formatted with ReFS");
         }
 
-        // Get an open file handle to the source file.
-        using SafeFileHandle sourceFileHandle = NativeMethods.CreateFile(resolvedSource, FileAccess.Read,
-            FileShare.Read | FileShare.Delete, IntPtr.Zero, FileMode.Open, FileAttributes.Normal, IntPtr.Zero);
+        // Get an open file handle to the source file. We use FILE_FLAGS_NO_BUFFERING here
+        // since we're not using unaligned writes during cloning and can skip buffering overhead.
+        using SafeFileHandle sourceFileHandle = NativeMethods.CreateFile(
+            resolvedSource,
+            FileAccess.Read,
+            FileShare.Read | FileShare.Delete,
+            lpSecurityAttributes: IntPtr.Zero,
+            FileMode.Open,
+            FileAttributes.Normal | (FileAttributes)NativeMethods.FILE_FLAG_NO_BUFFERING,
+            hTemplateFile: IntPtr.Zero);
         if (sourceFileHandle.IsInvalid)
         {
             int lastErr = Marshal.GetLastWin32Error();
@@ -134,8 +143,26 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                 $"Failed to create destination file '{destination}' with winerror {lastErr}");
         }
 
+        // Set the destination to be sparse while we clone.
+        int numBytesReturned = 0;
+        if (!NativeMethods.DeviceIoControl(
+                destFileHandle,
+                NativeMethods.FSCTL_SET_SPARSE,
+                null,
+                0,
+                null,
+                0,
+                ref numBytesReturned,
+                IntPtr.Zero))
+        {
+            int lastErr = Marshal.GetLastWin32Error();
+            NativeMethods.ThrowSpecificIoException(lastErr,
+                $"Failed to set file sparseness with winerror {lastErr} for destination file '{destination}'");
+        }
+
         long sourceFileLength;
-        if ((cloneFlags & CloneFlags.NoSparseFileCheck) != 0)
+        bool? sourceFileSparse;
+        if ((cloneFlags & CloneFlags.DestinationMustMatchSourceSparseness) == 0)
         {
             // Use cheaper API to just get the size.
             if (!NativeMethods.GetFileSizeEx(sourceFileHandle, out sourceFileLength))
@@ -144,6 +171,8 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                 NativeMethods.ThrowSpecificIoException(lastErr,
                     $"Failed to get file info with winerror {lastErr} for source file '{resolvedSource}'");
             }
+
+            sourceFileSparse = null;
         }
         else
         {
@@ -156,27 +185,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             }
 
             sourceFileLength = fileInfo.FileSize;
-
-            // Set destination as sparse if the source is. Must be done while file is zero bytes.
-            if ((fileInfo.FileAttributes & FileAttributes.SparseFile) != 0)
-            {
-                // Set the destination to be sparse to match the source.
-                int numBytesReturned = 0;
-                if (!NativeMethods.DeviceIoControl(
-                    destFileHandle,
-                    NativeMethods.FSCTL_SET_SPARSE,
-                    null,
-                    0,
-                    null,
-                    0,
-                    ref numBytesReturned,
-                    IntPtr.Zero))
-                {
-                    int lastErr = Marshal.GetLastWin32Error();
-                    NativeMethods.ThrowSpecificIoException(lastErr,
-                        $"Failed to set file sparseness with winerror {lastErr} for destination file '{destination}'");
-                }
-            }
+            sourceFileSparse = (fileInfo.FileAttributes & FileAttributes.SparseFile) != 0;
         }
 
         // Clone file integrity settings from source to destination. Must be done while file is zero size.
@@ -277,6 +286,26 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             if (_useCrossProcessLocks)
             {
                 Thread.EndThreadAffinity();
+            }
+        }
+
+        if ((cloneFlags & CloneFlags.DestinationMustMatchSourceSparseness) != 0 && sourceFileSparse == false)
+        {
+            // The source file was non-sparse and we've directed to align them.
+            numBytesReturned = 0;
+            if (!NativeMethods.DeviceIoControl(
+                destFileHandle,
+                NativeMethods.FSCTL_SET_SPARSE,
+                Marshal.UnsafeAddrOfPinnedArrayElement(FalseBool, 0),
+                Marshal.SizeOf(FalseBool[0]),
+                null,
+                0,
+                ref numBytesReturned,
+                IntPtr.Zero))
+            {
+                int lastErr = Marshal.GetLastWin32Error();
+                NativeMethods.ThrowSpecificIoException(lastErr,
+                    $"Failed to turn off file sparseness with winerror {lastErr} for destination file '{destination}'");
             }
         }
     }

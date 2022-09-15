@@ -157,11 +157,10 @@ public enum CloneFlags
     NoFileIntegrityCheck = 0x01,
 
     /// <summary>
-    /// Skip check for Windows sparse file attribute and application of sparse setting in destination.
-    /// Use when the filesystem and file are known not to be sparse.
-    /// Saves time by allowing use of less expensive kernel APIs.
+    /// By default, sparse destination files are used to speed up cloning. The file is typically left
+    /// sparse. Set this flag to reset the clone to non-sparse if the source file was non-sparse.
     /// </summary>
-    NoSparseFileCheck = 0x02,
+    DestinationMustMatchSourceSparseness = 0x02,
 
     /// <summary>
     /// Do not serialize clone creation if the OS's CoW facility cannot handle multi-threaded clone calls
