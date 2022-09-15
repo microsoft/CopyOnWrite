@@ -19,9 +19,11 @@ namespace Microsoft.CopyOnWrite.Tests.Windows;
 public sealed class CopyOnWriteTests_Windows
 {
     [TestMethod]
-    public void NtfsNegativeDetectionAndFailureToCopyExtents()
+    [DataRow(false)]
+    [DataRow(true)]
+    public void NtfsNegativeDetectionAndFailureToCopyExtents(bool fullyResolvedPaths)
     {
-        var cow = new WindowsCopyOnWriteFilesystem();
+        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
         bool anyNtfsFound = false;
         foreach (DriveInfo driveInfo in DriveInfo.GetDrives()
             .Where(di => di.IsReady))
@@ -31,10 +33,12 @@ public sealed class CopyOnWriteTests_Windows
                 anyNtfsFound = true;
                 Assert.IsFalse(cow.CopyOnWriteLinkSupportedBetweenPaths(
                     Path.Combine(driveInfo.Name.ToUpperInvariant(), Guid.NewGuid().ToString()),
-                    Path.Combine(driveInfo.Name.ToLowerInvariant(), Guid.NewGuid().ToString())));
+                    Path.Combine(driveInfo.Name.ToLowerInvariant(), Guid.NewGuid().ToString()),
+                    fullyResolvedPaths));
                 Assert.IsFalse(cow.CopyOnWriteLinkSupportedBetweenPaths(
                     Path.Combine(driveInfo.Name.ToLowerInvariant(), Guid.NewGuid().ToString()),
-                    Path.Combine(driveInfo.Name.ToUpperInvariant(), Guid.NewGuid().ToString())));
+                    Path.Combine(driveInfo.Name.ToUpperInvariant(), Guid.NewGuid().ToString()),
+                    fullyResolvedPaths));
             }
         }
 
@@ -47,7 +51,7 @@ public sealed class CopyOnWriteTests_Windows
     [TestMethod]
     public async Task TempDirValidateCloneFileFailureIfNtfs()
     {
-        var cow = new WindowsCopyOnWriteFilesystem();
+        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
         using var tempDir = new DisposableTempDirectory();
         var tempDriveInfo = new DriveInfo(tempDir.Path.Substring(0, 1));
         if (string.Equals(tempDriveInfo.DriveFormat, "NTFS", StringComparison.OrdinalIgnoreCase))
@@ -83,16 +87,17 @@ public sealed class CopyOnWriteTests_Windows
 
     [TestMethod]
     [TestCategory("Admin")]
-    [DataRow(CloneFlags.None)]
-    [DataRow(CloneFlags.NoFileIntegrityCheck)]
-    [DataRow(CloneFlags.NoSparseFileCheck)]
-    [DataRow(CloneFlags.NoFileIntegrityCheck | CloneFlags.NoSparseFileCheck)]
-    [DataRow(CloneFlags.NoSerializedCloning)]
-    public async Task ReFSPositiveDetectionAndCloneFileCorrectBehavior(CloneFlags cloneFlags)
+    [DataRow(CloneFlags.None, false)]
+    [DataRow(CloneFlags.None, true)]
+    [DataRow(CloneFlags.NoFileIntegrityCheck, false)]
+    [DataRow(CloneFlags.NoSparseFileCheck, false)]
+    [DataRow(CloneFlags.NoFileIntegrityCheck | CloneFlags.NoSparseFileCheck, false)]
+    [DataRow(CloneFlags.NoSerializedCloning, false)]
+    public async Task ReFSPositiveDetectionAndCloneFileCorrectBehavior(CloneFlags cloneFlags, bool useCrossProcessLocks)
     {
         using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create($"{nameof(ReFSPositiveDetectionAndCloneFileCorrectBehavior)}({(int)cloneFlags})");
 
-        var cow = new WindowsCopyOnWriteFilesystem();
+        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocks);
         string refsTestRoot = refs.TestRootDir;
 
         Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(refsTestRoot));
@@ -184,13 +189,17 @@ public sealed class CopyOnWriteTests_Windows
 
     [TestMethod]
     [TestCategory("Admin")]
-    public async Task ReFSMountAndCacheClearingBehavior()
+    [DataRow(false, false)]
+    [DataRow(false, true)]
+    [DataRow(true, false)]
+    [DataRow(true, true)]
+    public async Task ReFSMountAndCacheClearingBehavior(bool useCrossProcessLocks, bool fullyResolvedPaths)
     {
         const string testSubDir = nameof(ReFSMountAndCacheClearingBehavior);
         using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create(testSubDir);
 
         // Create a filesystem object before mounting the ReFS volume to allow cache semantics check.
-        var cowBeforeMount = new WindowsCopyOnWriteFilesystem();
+        ICopyOnWriteFilesystem cowBeforeMount = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocks);
 
         // Mount the ReFS volume under the C: drive before creating a filesystem object that will read current filesystem state.
         const string cDriveBaseTestDir = @"C:\CoWMountTest";
@@ -207,24 +216,24 @@ public sealed class CopyOnWriteTests_Windows
             ProcessExecutionUtilities.RunAndCaptureOutput("diskpart", $"/s {diskPartScriptPath}");
             try
             {
-                var cow = new WindowsCopyOnWriteFilesystem();
+                ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocks);
 
                 // C: drive (NTFS).
-                Assert.IsFalse(cow.CopyOnWriteLinkSupportedInDirectoryTree(@"C:\"));
-                Assert.IsFalse(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(@"C:\"));
+                Assert.IsFalse(cow.CopyOnWriteLinkSupportedInDirectoryTree(@"C:\", fullyResolvedPaths));
+                Assert.IsFalse(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(@"C:\", fullyResolvedPaths));
 
                 // ReFS root.
-                Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(refs.ReFsDriveRoot));
-                Assert.IsTrue(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(refs.ReFsDriveRoot));
+                Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(refs.ReFsDriveRoot, fullyResolvedPaths));
+                Assert.IsTrue(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(refs.ReFsDriveRoot, fullyResolvedPaths));
 
                 // Mount.
-                Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(mountPath));
-                Assert.IsFalse(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(mountPath), "Cached filesystem state should not show mount");
+                Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(mountPath, fullyResolvedPaths));
+                Assert.IsFalse(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(mountPath, fullyResolvedPaths), "Cached filesystem state should not show mount");
 
                 // Clear pre-mount FS instance cache and verify it sees current reality.
                 cowBeforeMount.ClearFilesystemCache();
-                Assert.IsTrue(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(mountPath));
-                Assert.IsFalse(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(@"C:\"));
+                Assert.IsTrue(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(mountPath, fullyResolvedPaths));
+                Assert.IsFalse(cowBeforeMount.CopyOnWriteLinkSupportedInDirectoryTree(@"C:\", fullyResolvedPaths));
 
                 // Should be able to clone between the mount and the drive since they are the same underlying volume.
                 string source1Path = Path.Combine(refs.TestRootDir, "source1");
@@ -232,9 +241,9 @@ public sealed class CopyOnWriteTests_Windows
                 string destDir = Path.Combine(mountPath, testSubDir);
                 Directory.CreateDirectory(destDir);
                 string dest1Path = Path.Combine(destDir, "dest1");
-                Assert.IsTrue(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path, dest1Path));
+                Assert.IsTrue(cow.CopyOnWriteLinkSupportedBetweenPaths(source1Path, dest1Path, fullyResolvedPaths));
 
-                cow.CloneFile(source1Path, dest1Path, CloneFlags.None);
+                cow.CloneFile(source1Path, dest1Path, fullyResolvedPaths ? CloneFlags.PathIsFullyResolved : CloneFlags.None);
                 Assert.IsTrue(File.Exists(dest1Path));
                 var source1FI = new FileInfo(source1Path);
                 Console.WriteLine($"source1 size {source1FI.Length}");
@@ -260,7 +269,7 @@ public sealed class CopyOnWriteTests_Windows
     [TestMethod]
     public void UncPathsNotLinkable()
     {
-        var cow = new WindowsCopyOnWriteFilesystem();
+        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
         const string uncSourcePath = @"\\someMachine\someShare";
         Assert.IsFalse(
             cow.CopyOnWriteLinkSupportedBetweenPaths(uncSourcePath, @"\\otherMachine\otherShare"));

@@ -11,14 +11,14 @@ internal sealed class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 {
     public int MaxClonesPerFile => int.MaxValue;
 
-    public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination)
+    public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination, bool pathsAreFullyResolved = false)
     {
         // AppleFS always supports CoW.
         // return true;
         throw new NotImplementedException();
     }
 
-    public bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory)
+    public bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory, bool pathIsFullyResolved = false)
     {
         // AppleFS always supports CoW.
         // return true;

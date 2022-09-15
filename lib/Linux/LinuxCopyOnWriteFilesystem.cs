@@ -11,13 +11,13 @@ internal sealed class LinuxCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 {
     public int MaxClonesPerFile => int.MaxValue;
 
-    public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination)
+    public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination, bool pathsAreFullyResolved = false)
     {
         // TODO: Implement FS probing and return a real value.
         throw new NotImplementedException();
     }
 
-    public bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory)
+    public bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory, bool pathIsFullyResolved = false)
     {
         throw new NotImplementedException();
     }

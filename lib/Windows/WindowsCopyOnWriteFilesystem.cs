@@ -20,7 +20,13 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     internal const long MaxChunkSize = 1L << 31;  // 2GB
 
     private VolumeInfoCache _volumeInfoCache = VolumeInfoCache.BuildFromCurrentFilesystem();
-    private readonly LockSet<string> _sourcePathLockSet = new(StringComparer.OrdinalIgnoreCase);
+    private readonly LockSet<string> _sourcePathLockSetForInProcessSerialization = new(StringComparer.OrdinalIgnoreCase);
+    private readonly bool _useCrossProcessLocks;
+    
+    public WindowsCopyOnWriteFilesystem(bool useCrossProcessLocks)
+    {
+        _useCrossProcessLocks = useCrossProcessLocks;
+    }
 
     // https://docs.microsoft.com/en-us/windows-server/storage/refs/block-cloning#functionality-restrictions-and-remarks
     /// <inheritdoc />
@@ -29,15 +35,15 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     // TODO: Deal with \??\ prefixes
     // TODO: Deal with \\?\ prefixes
     /// <inheritdoc />
-    public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination)
+    public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination, bool pathsAreFullyResolved = false)
     {
-        (string resolvedSource, bool sourceOk) = ResolvePathAndEnsureDriveLetterVolume(source);
+        (string resolvedSource, bool sourceOk) = ResolvePathAndEnsureDriveLetterVolume(source, pathsAreFullyResolved);
         if (!sourceOk)
         {
             return false;
         }
 
-        (string resolvedDestination, bool destOk) = ResolvePathAndEnsureDriveLetterVolume(destination);
+        (string resolvedDestination, bool destOk) = ResolvePathAndEnsureDriveLetterVolume(destination, pathsAreFullyResolved);
         if (!destOk)
         {
             return false;
@@ -55,9 +61,9 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     }
 
     /// <inheritdoc />
-    public bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory)
+    public bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory, bool pathIsFullyResolved = false)
     {
-        (string resolvedSource, bool sourceOk) = ResolvePathAndEnsureDriveLetterVolume(rootDirectory);
+        (string resolvedSource, bool sourceOk) = ResolvePathAndEnsureDriveLetterVolume(rootDirectory, pathIsFullyResolved);
         if (!sourceOk)
         {
             return false;
@@ -92,7 +98,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 #endif
         CloneFileAsync(string source, string destination, CloneFlags cloneFlags, CancellationToken cancellationToken)
     {
-        (string resolvedSource, bool sourceOk) = ResolvePathAndEnsureDriveLetterVolume(source);
+        (string resolvedSource, bool sourceOk) = ResolvePathAndEnsureDriveLetterVolume(source, cloneFlags.HasFlag(CloneFlags.PathIsFullyResolved));
         if (!sourceOk)
         {
             throw new NotSupportedException($"Source path '{source}' is not in the correct format");
@@ -228,10 +234,29 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                 $"Failed to set end of file with winerror {lastErr} on destination file '{destination}'");
         }
 
-        LockSet<string>.LockHandle lockHandle;
+        IDisposable lockHandle;
         if (!cloneFlags.HasFlag(CloneFlags.NoSerializedCloning))
         {
-            lockHandle = await _sourcePathLockSet.AcquireAsync(resolvedSource);
+            if (_useCrossProcessLocks)
+            {
+                string mutexName = $@"Global\{resolvedSource.ToUpperInvariant().Replace(':', '_').Replace('\\', '_')}";
+                var mutex = new Mutex(false, mutexName);
+                Thread.BeginThreadAffinity();
+                try
+                {
+                    mutex.WaitOne(); // No async available: affinitized to current thread.
+                }
+                catch (AbandonedMutexException)
+                {
+                    // We got the lock on the mutex despite it being abandoned by another thread/process.
+                }
+
+                lockHandle = mutex;
+            }
+            else
+            {
+                lockHandle = await _sourcePathLockSetForInProcessSerialization.AcquireAsync(resolvedSource);
+            }
         }
         else
         {
@@ -247,6 +272,11 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             if (!cloneFlags.HasFlag(CloneFlags.NoSerializedCloning))
             {
                 lockHandle.Dispose();
+            }
+
+            if (_useCrossProcessLocks)
+            {
+                Thread.EndThreadAffinity();
             }
         }
     }
@@ -317,11 +347,15 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         return (originalValue + mask) & ~mask;
     }
 
-    private static (string, bool) ResolvePathAndEnsureDriveLetterVolume(string path)
+    private static (string, bool) ResolvePathAndEnsureDriveLetterVolume(string path, bool pathIsFullyResolved)
     {
         if (path.Length < 2 || path[1] != ':')
         {
-            path = Path.GetFullPath(path);
+            if (!pathIsFullyResolved)
+            {
+                path = Path.GetFullPath(path);
+            }
+
             if (path.Length < 2 || path[1] != ':')
             {
                 // Possible UNC path or other strangeness.
