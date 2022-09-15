@@ -46,7 +46,7 @@ public interface ICopyOnWriteFilesystem
     /// <param name="source">The file path to which the link will point.</param>
     /// <param name="destination">The file path that would contain the link.</param>
     /// <param name="pathsAreFullyResolved">
-    /// When true, avoids expensive calls to <see cref="System.IO.Path.GetFullPath"/> to resolve the
+    /// When true, avoids expensive calls to <see cref="System.IO.Path.GetFullPath(string)"/> to resolve the
     /// full path by asserting that the caller already called it for the source and destination paths.
     /// </param>
     /// <returns>True if a link can be created, false if it cannot.</returns>
@@ -65,7 +65,7 @@ public interface ICopyOnWriteFilesystem
     /// another volume.
     /// </param>
     /// <param name="pathIsFullyResolved">
-    /// When true, avoids an expensive call to <see cref="System.IO.Path.GetFullPath"/> to resolve the
+    /// When true, avoids an expensive call to <see cref="System.IO.Path.GetFullPath(string)"/> to resolve the
     /// full path by asserting that the caller already called it for the root path.
     /// </param>
     /// <returns>True if a link can be created, false if it cannot.</returns>
@@ -171,7 +171,7 @@ public enum CloneFlags
     NoSerializedCloning,
 
     /// <summary>
-    /// Avoids expensive calls to <see cref="System.IO.Path.GetFullPath"/> to resolve the full path by asserting
+    /// Avoids expensive calls to <see cref="System.IO.Path.GetFullPath(string)"/> to resolve the full path by asserting
     /// that the caller already called it for the source and destination paths.
     /// </summary>
     PathIsFullyResolved,
