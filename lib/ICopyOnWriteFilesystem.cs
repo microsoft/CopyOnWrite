@@ -164,9 +164,13 @@ public enum CloneFlags
     NoSparseFileCheck = 0x02,
 
     /// <summary>
-    /// Skip serialized clone creation if the OS's CoW facility cannot handle multi-threaded clone calls
-    /// in a stable way (Windows as of Server 2022 / Windows 11). Skip this check if you know that only
-    /// one clone of a source file will be performed at a time to improve performance.
+    /// Do not serialize clone creation if the OS's CoW facility cannot handle multi-threaded clone calls
+    /// in a stable way (Windows as of Server 2022 / Windows 10 and 11). See 
+    ///
+    /// Specify this flag if:
+    /// * You know that only one clone of a source file will be performed at a time across all processes.
+    /// * You know that the source file is fully flushed to disk prior to starting parallel clones.
+    ///   See https://github.com/microsoft/CopyOnWrite/blob/main/README.md .
     /// </summary>
     NoSerializedCloning = 0x04,
 
