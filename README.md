@@ -54,8 +54,13 @@ ensure they are flushed to disk before performing parallel clones. The workaroun
 ## Release History
 [NuGet package](https://www.nuget.org/packages/CopyOnWrite):
 
+* 0.2.0 September 2022: Improve documentation for ReFS parallel cloning bug workarounds.
+  Improve Windows cloning performance by 7.2% by using sparse destination files.
+  Default behavior change to leave destination file sparse and replaced `CloneFlags.NoSparseFileCheck` with `DestinationMustMatchSourceSparseness`,
+  hence minor version increase.
 * 0.1.13 September 2022: Fix CloneFlags to use individual bits.
-* 0.1.12 September 2022: Add new factory flag that sets a mode to require cross-process Windows mutexes for safe source file locking to avoid a ReFS concurrency bug. Add optimization to allow bypassing redundant Path.GetFullPath() when caller has done it already.
+* 0.1.12 September 2022: Add new factory flag that sets a mode to require cross-process Windows mutexes for safe source file locking to avoid a ReFS concurrency bug.
+  Add optimization to allow bypassing redundant Path.GetFullPath() when caller has done it already.
 * 0.1.11 September 2022: Serialize Windows cloning on source path to work around ReFS limitation in multithreaded cloning.
 * 0.1.10 September 2022: Fix missing destination file failure detection.
 * 0.1.9 September 2022: Add explicit cache invalidation call to interface.
@@ -87,54 +92,57 @@ You must run tests elevated (as admin), e.g. by opening Visual Studio as an admi
 ## Performance Comparisons
 
 ### Windows
-CoW links on ReFS take approximately constant time, saving time over file copies except at file size zero. The savings is proportional to the file size, with 16MB files at about 35X performance, 1MB at 3.2X, and small sizes at about 1.3X.
+CoW links on ReFS take approximately constant time, saving time over file copies except at file size zero.
+The savings is proportional to the file size, with 16MB files at about 35X performance, 1MB at 3.2X, and small sizes at about 1.3X.
 
-Detailed numbers for a VHD formatted empty with ReFS for each iteration, comparing `System.IO.File.Copy()` with `CloneFile()`, 25 copies/clones of a single source file per measurement. See CoWComparisons.cs. Machine was an 8/16-core M.2 SSD, Win10 21H1 Enterprise.
-
-|    Method | FileSize |       Mean |     Error |    StdDev |     Median | Ratio | RatioSD |
-|---------- |--------- |-----------:|----------:|----------:|-----------:|------:|--------:|
-| File.Copy |        0 |   4.933 ms | 0.3274 ms | 0.9551 ms |   4.799 ms |  1.00 |    0.00 |
-|       CoW |        0 |   5.002 ms | 0.2447 ms | 0.7100 ms |   4.885 ms |  1.04 |    0.21 |
-|           |          |            |           |           |            |       |         |
-| File.Copy |        1 |   8.841 ms | 0.4976 ms | 1.4197 ms |   8.515 ms |  1.00 |    0.00 |
-|       CoW |        1 |   6.499 ms | 0.3647 ms | 1.0579 ms |   6.169 ms |  0.75 |    0.13 |
-|           |          |            |           |           |            |       |         |
-| File.Copy |     1024 |   8.614 ms | 0.4982 ms | 1.4374 ms |   8.471 ms |  1.00 |    0.00 |
-|       CoW |     1024 |   6.678 ms | 0.3776 ms | 1.0834 ms |   6.269 ms |  0.79 |    0.14 |
-|           |          |            |           |           |            |       |         |
-| File.Copy |    16384 |   8.950 ms | 0.5148 ms | 1.4770 ms |   8.454 ms |  1.00 |    0.00 |
-|       CoW |    16384 |   6.774 ms | 0.3240 ms | 0.9137 ms |   6.622 ms |  0.77 |    0.12 |
-|           |          |            |           |           |            |       |         |
-| File.Copy |   262144 |  12.700 ms | 0.6236 ms | 1.7993 ms |  12.140 ms |  1.00 |    0.00 |
-|       CoW |   262144 |   7.036 ms | 0.3911 ms | 1.1470 ms |   6.882 ms |  0.56 |    0.10 |
-|           |          |            |           |           |            |       |         |
-| File.Copy |  1048576 |  21.920 ms | 0.4359 ms | 1.1785 ms |  21.690 ms |  1.00 |    0.00 |
-|       CoW |  1048576 |   6.940 ms | 0.3652 ms | 1.0711 ms |   6.743 ms |  0.32 |    0.05 |
-|           |          |            |           |           |            |       |         |
-| File.Copy | 16777216 | 252.637 ms | 2.9167 ms | 2.5855 ms | 251.895 ms |  1.00 |    0.00 |
-|       CoW | 16777216 |   7.272 ms | 0.2882 ms | 0.7987 ms |   7.136 ms |  0.03 |    0.00 |
-
-Same benchmark performed on a ReFS partition (no VHD) on an M.2 SSD:
+Detailed numbers for a VHD formatted empty with ReFS for each iteration, comparing `System.IO.File.Copy()` with `CloneFile()`,
+50 copies/clones of a single source file per measurement, highest performance clone flags and settings.
+See CoWComparisons.cs. Machine was an 8/16-core, NVMe, Win11 22H1 Enterprise.
 
 |    Method | FileSize |       Mean |     Error |    StdDev |     Median | Ratio | RatioSD |
 |---------- |--------- |-----------:|----------:|----------:|-----------:|------:|--------:|
-| File.Copy |        0 |   3.627 ms | 0.2430 ms | 0.7127 ms |   3.453 ms |  1.00 |    0.00 |
-|       CoW |        0 |   4.173 ms | 0.1934 ms | 0.5641 ms |   4.067 ms |  1.19 |    0.27 |
+| File.Copy |        0 |   202.8 us |   6.79 us |  19.92 us |   199.5 us |  1.00 |    0.00 |
+|       CoW |        0 |   192.8 us |   5.40 us |  15.57 us |   191.2 us |  0.96 |    0.12 |
 |           |          |            |           |           |            |       |         |
-| File.Copy |        1 |   6.711 ms | 0.2276 ms | 0.6567 ms |   6.652 ms |  1.00 |    0.00 |
-|       CoW |        1 |   5.597 ms | 0.1989 ms | 0.5803 ms |   5.471 ms |  0.84 |    0.12 |
+| File.Copy |        1 |   346.8 us |   9.65 us |  27.99 us |   345.8 us |  1.00 |    0.00 |
+|       CoW |        1 |   237.5 us |   7.38 us |  21.28 us |   239.3 us |  0.69 |    0.08 |
 |           |          |            |           |           |            |       |         |
-| File.Copy |     1024 |   6.476 ms | 0.2533 ms | 0.7146 ms |   6.398 ms |  1.00 |    0.00 |
-|       CoW |     1024 |   5.647 ms | 0.2135 ms | 0.6194 ms |   5.614 ms |  0.89 |    0.14 |
+| File.Copy |     1024 |   372.9 us |   9.75 us |  27.66 us |   371.2 us |  1.00 |    0.00 |
+|       CoW |     1024 |   248.0 us |   6.97 us |  20.21 us |   248.5 us |  0.67 |    0.07 |
 |           |          |            |           |           |            |       |         |
-| File.Copy |    16384 |   6.514 ms | 0.2421 ms | 0.6946 ms |   6.340 ms |  1.00 |    0.00 |
-|       CoW |    16384 |   5.703 ms | 0.2212 ms | 0.6453 ms |   5.636 ms |  0.88 |    0.12 |
+| File.Copy |    16384 |   347.1 us |  12.56 us |  35.62 us |   342.2 us |  1.00 |    0.00 |
+|       CoW |    16384 |   248.8 us |   9.76 us |  28.47 us |   244.3 us |  0.72 |    0.11 |
 |           |          |            |           |           |            |       |         |
-| File.Copy |   262144 |   9.579 ms | 0.4325 ms | 1.2751 ms |   9.421 ms |  1.00 |    0.00 |
-|       CoW |   262144 |   5.770 ms | 0.2632 ms | 0.7761 ms |   5.543 ms |  0.61 |    0.12 |
+| File.Copy |   262144 |   484.3 us |  11.83 us |  34.69 us |   482.4 us |  1.00 |    0.00 |
+|       CoW |   262144 |   247.8 us |   8.51 us |  24.69 us |   245.6 us |  0.51 |    0.06 |
 |           |          |            |           |           |            |       |         |
-| File.Copy |  1048576 |  20.679 ms | 0.8702 ms | 2.4966 ms |  20.426 ms |  1.00 |    0.00 |
-|       CoW |  1048576 |   6.253 ms | 0.2658 ms | 0.7628 ms |   6.152 ms |  0.31 |    0.05 |
+| File.Copy |  1048576 |   954.4 us |  19.06 us |  41.85 us |   948.0 us |  1.00 |    0.00 |
+|       CoW |  1048576 |   251.3 us |   9.77 us |  28.64 us |   246.8 us |  0.27 |    0.03 |
 |           |          |            |           |           |            |       |         |
-| File.Copy | 16777216 | 240.713 ms | 4.7471 ms | 6.6547 ms | 240.357 ms |  1.00 |    0.00 |
-|       CoW | 16777216 |   7.291 ms | 0.3910 ms | 1.1217 ms |   7.070 ms |  0.03 |    0.01 |
+| File.Copy | 16777216 | 9,867.2 us | 195.87 us | 546.01 us | 9,605.5 us |  1.00 |    0.00 |
+|       CoW | 16777216 |   283.5 us |   6.56 us |  18.60 us |   282.7 us |  0.03 |    0.00 |
+
+Same benchmark performed on a ReFS partition (no VHD) on the NVMe disk:
+
+|    Method | FileSize |       Mean |     Error |    StdDev |     Median | Ratio | RatioSD |
+|---------- |--------- |-----------:|----------:|----------:|-----------:|------:|--------:|
+| File.Copy |        0 |   205.5 us |   8.82 us |  26.01 us |   200.1 us |  1.00 |    0.00 |
+|       CoW |        0 |   183.7 us |   4.85 us |  14.16 us |   181.9 us |  0.91 |    0.13 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |        1 |   307.9 us |   6.69 us |  19.53 us |   306.7 us |  1.00 |    0.00 |
+|       CoW |        1 |   265.5 us |  15.18 us |  44.77 us |   265.6 us |  0.87 |    0.15 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |     1024 |   310.3 us |   6.56 us |  18.82 us |   310.4 us |  1.00 |    0.00 |
+|       CoW |     1024 |   235.1 us |   9.51 us |  26.82 us |   227.9 us |  0.76 |    0.10 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |    16384 |   295.5 us |   5.80 us |  15.39 us |   295.2 us |  1.00 |    0.00 |
+|       CoW |    16384 |   272.4 us |  16.46 us |  46.96 us |   275.9 us |  0.95 |    0.16 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |   262144 |   425.5 us |   9.29 us |  26.80 us |   423.8 us |  1.00 |    0.00 |
+|       CoW |   262144 |   234.6 us |   7.83 us |  22.96 us |   232.7 us |  0.55 |    0.06 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |  1048576 |   851.7 us |  20.00 us |  56.08 us |   836.3 us |  1.00 |    0.00 |
+|       CoW |  1048576 |   273.7 us |  15.39 us |  45.39 us |   269.9 us |  0.33 |    0.06 |
+|           |          |            |           |           |            |       |         |
+| File.Copy | 16777216 | 9,327.9 us | 179.64 us | 206.88 us | 9,282.0 us |  1.00 |    0.00 |
+|       CoW | 16777216 |   273.3 us |  15.22 us |  44.17 us |   260.5 us |  0.04 |    0.00 |

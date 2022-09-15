@@ -31,6 +31,7 @@ internal static class NativeMethods
         };
     }
 
+    public const int FILE_FLAG_NO_BUFFERING = 0x20000000;
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]

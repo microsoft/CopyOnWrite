@@ -12,7 +12,7 @@ namespace Microsoft.CopyOnWrite.Benchmarking;
 public class CoWComparisons
 {
     // Do more work per round to meet minimum BenchmarkDotNet times.
-    private const int CopiesPerJob = 25;
+    private const int CopiesPerJob = 50;
 
     // Static to avoid multiple drives being created during benchmark and to allow control
     // of call to Dispose().
@@ -42,25 +42,32 @@ public class CoWComparisons
         return names;
     }
         
-    private readonly ICopyOnWriteFilesystem _cow = CopyOnWriteFilesystemFactory.GetInstance();
+    private ICopyOnWriteFilesystem? _cow;
     private string? _testOutputDir;
     private readonly Dictionary<long, string> _fileSizeToSourcePathMap = new ();
 
     [GlobalSetup]
     public void GlobalSetup()
     {
+        // Default assumes you have the CoW_Test_ReFS_Drive env var set globally to point to the root of a ReFS drive.
+        // Set to true to test VHD case when you have that env var set.
+        // VHD test runs need to run under an elevated console.
+        const bool forceVhd = false;
+        
         string testRootDir;
         if (OsHelper.IsWindows)
         {
-            //ReFsVhdSession = WindowsReFsDriveSession.Create();
-            //testRootDir = ReFsVhdSession.ReFsDriveRoot;
-            testRootDir = @"d:\cowcompare";
+            ReFsVhdSession = WindowsReFsDriveSession.Create("CowBenchmarks", forceVhd);
+            testRootDir = ReFsVhdSession.TestRootDir;
         }
         else
         {
             // TODO: Other OSes.
             testRootDir = Environment.CurrentDirectory;
         }
+
+        // Must create a new CoW object because the filesystem layout may have changed if a VHD was added.
+        _cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
 
         _testOutputDir = Path.Combine(testRootDir, "Output");
         Directory.CreateDirectory(_testOutputDir);
@@ -113,7 +120,13 @@ public class CoWComparisons
         for (int i = 0; i < CopiesPerJob; i++)
         {
             string targetFilePath = Path.Combine(_testOutputDir!, FileNames[i]);
-            _cow.CloneFile(sourceFilePath, targetFilePath);
+
+            const CloneFlags highestPerfCloneFlags =
+                CloneFlags.NoFileIntegrityCheck |
+                CloneFlags.NoSerializedCloning |
+                CloneFlags.PathIsFullyResolved;
+
+            _cow!.CloneFile(sourceFilePath, targetFilePath, highestPerfCloneFlags);
         }
     }
 }

@@ -42,16 +42,19 @@ public class WindowsReFsDriveSession : IDisposable
     /// Creates a session by using the configured pre-created ReFS volume or by mounting a ReFS drive as a VHD.
     /// Dispose the returned object to clean up the drive and/or test root.
     /// </summary>
-    public static WindowsReFsDriveSession Create(string relativeTestRootDir)
+    public static WindowsReFsDriveSession Create(string relativeTestRootDir, bool forceVhd = false)
     {
         // Allow short-circuiting for CI environment and machines with locally created ReFS drives.
         // CODESYNC: .github/workflows/CI.yaml
-        string? preCreatedReFsDriveRoot = Environment.GetEnvironmentVariable("CoW_Test_ReFS_Drive");
-        if (!string.IsNullOrEmpty(preCreatedReFsDriveRoot))
+        if (!forceVhd)
         {
-            return new WindowsReFsDriveSession(preCreatedReFsDriveRoot[0], null, relativeTestRootDir);
+            string? preCreatedReFsDriveRoot = Environment.GetEnvironmentVariable("CoW_Test_ReFS_Drive");
+            if (!string.IsNullOrEmpty(preCreatedReFsDriveRoot))
+            {
+                return new WindowsReFsDriveSession(preCreatedReFsDriveRoot[0], null, relativeTestRootDir);
+            }
         }
-        
+
         var driveLetterHashSet = new HashSet<char>();
         foreach (DriveInfo driveInfo in DriveInfo.GetDrives())
         {
@@ -101,7 +104,7 @@ public class WindowsReFsDriveSession : IDisposable
 
     public void Dispose()
     {
-        Directory.Delete(TestRootDir, recursive: true);
+        Directory.Delete(Path.GetDirectoryName(TestRootDir)!, recursive: true);
         if (_removeVhdScriptPath != null)
         {
             RunPowershellScript(_removeVhdScriptPath, $"{_vhdDriveLetter}");
