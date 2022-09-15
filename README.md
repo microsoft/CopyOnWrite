@@ -54,7 +54,6 @@ ensure they are flushed to disk before performing parallel clones. The workaroun
 ## Release History
 [NuGet package](https://www.nuget.org/packages/CopyOnWrite):
 
-* 0.1.14 September 2022: Improve documentation for Windows ReFS parallel cloning workarounds.
 * 0.1.13 September 2022: Fix CloneFlags to use individual bits.
 * 0.1.12 September 2022: Add new factory flag that sets a mode to require cross-process Windows mutexes for safe source file locking to avoid a ReFS concurrency bug. Add optimization to allow bypassing redundant Path.GetFullPath() when caller has done it already.
 * 0.1.11 September 2022: Serialize Windows cloning on source path to work around ReFS limitation in multithreaded cloning.
