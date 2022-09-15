@@ -32,6 +32,8 @@ if (canCloneInCurrentDirectory)
 ## Release History
 [NuGet package](https://www.nuget.org/packages/CopyOnWrite):
 
+* 0.1.13 September 2022: Fix CloneFlags to use individual bits.
+* 0.1.12 September 2022: Add new factory flag that sets a mode to require cross-process Windows mutexes for safe source file locking to avoid a ReFS concurrency bug. Add optimization to allow bypassing redundant Path.GetFullPath() when caller has done it already.
 * 0.1.11 September 2022: Serialize Windows cloning on source path to work around ReFS limitation in multithreaded cloning.
 * 0.1.10 September 2022: Fix missing destination file failure detection.
 * 0.1.9 September 2022: Add explicit cache invalidation call to interface.

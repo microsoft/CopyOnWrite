@@ -45,8 +45,12 @@ public interface ICopyOnWriteFilesystem
     /// </summary>
     /// <param name="source">The file path to which the link will point.</param>
     /// <param name="destination">The file path that would contain the link.</param>
+    /// <param name="pathsAreFullyResolved">
+    /// When true, avoids expensive calls to <see cref="System.IO.Path.GetFullPath(string)"/> to resolve the
+    /// full path by asserting that the caller already called it for the source and destination paths.
+    /// </param>
     /// <returns>True if a link can be created, false if it cannot.</returns>
-    bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination);
+    bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination, bool pathsAreFullyResolved = false);
 
     /// <summary>
     /// Determines whether copy-on-write links can be created for files at the specified
@@ -60,8 +64,12 @@ public interface ICopyOnWriteFilesystem
     /// copy-on-write links, or it can be a path under a volume mount point within
     /// another volume.
     /// </param>
+    /// <param name="pathIsFullyResolved">
+    /// When true, avoids an expensive call to <see cref="System.IO.Path.GetFullPath(string)"/> to resolve the
+    /// full path by asserting that the caller already called it for the root path.
+    /// </param>
     /// <returns>True if a link can be created, false if it cannot.</returns>
-    bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory);
+    bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory, bool pathIsFullyResolved = false);
 
     /// <summary>
     /// Creates a copy-on-write link at <paramref name="destination"/> pointing
@@ -139,26 +147,32 @@ public enum CloneFlags
     /// <summary>
     /// Default zero value, no behavior changes.
     /// </summary>
-    None,
+    None = 0,
 
     /// <summary>
     /// Skip check for and copy of Windows file integrity settings from source to destination.
     /// Use when the filesystem and file are known not to use integrity.
     /// Saves 1-2 kernel round-trips.
     /// </summary>
-    NoFileIntegrityCheck,
+    NoFileIntegrityCheck = 0x01,
 
     /// <summary>
     /// Skip check for Windows sparse file attribute and application of sparse setting in destination.
     /// Use when the filesystem and file are known not to be sparse.
     /// Saves time by allowing use of less expensive kernel APIs.
     /// </summary>
-    NoSparseFileCheck,
+    NoSparseFileCheck = 0x02,
 
     /// <summary>
     /// Skip serialized clone creation if the OS's CoW facility cannot handle multi-threaded clone calls
     /// in a stable way (Windows as of Server 2022 / Windows 11). Skip this check if you know that only
     /// one clone of a source file will be performed at a time to improve performance.
     /// </summary>
-    NoSerializedCloning,
+    NoSerializedCloning = 0x04,
+
+    /// <summary>
+    /// Avoids expensive calls to <see cref="System.IO.Path.GetFullPath(string)"/> to resolve the full path by asserting
+    /// that the caller already called it for the source and destination paths.
+    /// </summary>
+    PathIsFullyResolved = 0x08,
 }
