@@ -2,9 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CopyOnWrite.TestUtilities;
@@ -264,6 +266,80 @@ public sealed class CopyOnWriteTests_Windows
         finally
         {
             Directory.Delete(cDriveBaseTestDir, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    [TestCategory("Admin")]
+    public void ReFSVolumeSubstDetection()
+    {
+        const string testSubDir = nameof(ReFSVolumeSubstDetection);
+        using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create(testSubDir);
+
+        // Find two open drive letters after mounting a ReFS volume.
+        var openDriveLetters = new List<char>(2);
+        for (char driveLetter = 'Z'; driveLetter > 'A'; driveLetter--)
+        {
+            if (!Directory.Exists($@"{driveLetter}:\"))
+            {
+                openDriveLetters.Add(driveLetter);
+                if (openDriveLetters.Count == 2)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (openDriveLetters.Count < 2)
+        {
+            Assert.Fail("Could not find two open drive letters");
+        }
+
+        ICopyOnWriteFilesystem cowBeforeSubst = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
+
+        foreach (char openDriveLetter in openDriveLetters)
+        {
+            try
+            {
+                cowBeforeSubst.CopyOnWriteLinkSupportedInDirectoryTree($@"{openDriveLetter}:\", pathIsFullyResolved: true);
+                Assert.Fail("Expected ArgumentException for unknown drive root");
+            }
+            catch (ArgumentException)
+            {
+                // Expected.
+            }
+        }
+
+        // SUBST the open drive letters to the ReFS volume.
+        foreach (char openDriveLetter in openDriveLetters)
+        {
+            bool success = NativeMethods.DefineDosDevice(0, $"{openDriveLetter}:", refs.ReFsDriveRoot.Substring(0, 2));
+            if (!success)
+            {
+                Assert.Fail($"Failed to SUBST {openDriveLetter}: to {refs.ReFsDriveRoot} with error {Marshal.GetLastWin32Error()}");
+            }
+        }
+
+        try
+        {
+            ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
+
+            foreach (char openDriveLetter in openDriveLetters)
+            {
+                string openDriveRoot = $@"{openDriveLetter}:\";
+                Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(openDriveRoot, pathIsFullyResolved: true), openDriveRoot);
+            }
+        }
+        finally
+        {
+            foreach (char openDriveLetter in openDriveLetters)
+            {
+                bool success = NativeMethods.DefineDosDevice(NativeMethods.DDD_REMOVE_DEFINITION, $"{openDriveLetter}:", null);
+                if (!success)
+                {
+                    Assert.Fail($"Failed to remove SUBST on {openDriveLetter}: with error {Marshal.GetLastWin32Error()}");
+                }
+            }
         }
     }
 

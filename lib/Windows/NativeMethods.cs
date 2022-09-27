@@ -237,4 +237,25 @@ internal static class NativeMethods
         IntPtr lpszVolumePathNames,
         int cchBufferLength,
         out int lpcchReturnLength);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern int QueryDosDevice(
+        string? lpDeviceName,
+        IntPtr lpTargetPath,
+        int ucchMax);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DefineDosDevice(
+        int dwFlags,
+        string lpDeviceName,
+        string? pTargetPath);
+
+    internal const int DDD_REMOVE_DEFINITION = 0x02;
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern int GetLogicalDrives();
 }

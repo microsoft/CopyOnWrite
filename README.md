@@ -54,6 +54,7 @@ ensure they are flushed to disk before performing parallel clones. The workaroun
 ## Release History
 [NuGet package](https://www.nuget.org/packages/CopyOnWrite):
 
+* 0.2.1 September 2022: Add detection for DOS SUBST drives as additional source of mappings.
 * 0.2.0 September 2022: Improve documentation for ReFS parallel cloning bug workarounds.
   Improve Windows cloning performance by 7.2% by using sparse destination files.
   Default behavior change to leave destination file sparse and replaced `CloneFlags.NoSparseFileCheck` with `DestinationMustMatchSourceSparseness`,
