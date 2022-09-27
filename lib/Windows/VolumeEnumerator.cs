@@ -60,9 +60,7 @@ internal sealed class VolumeEnumerator : IDisposable
     /// <returns></returns>
     public IEnumerable<VolumePaths> GetVolumesAndVolumePaths()
     {
-        // Get DOS drive mappings for SUBSTed drives. We treat these as mount points for the original
-        // volume. Up to 26 drive letters, each with 2 characters (e.g. "B:") separated by null characters
-        // and with double null at end.
+        // Get DOS drive mappings for SUBSTed drives. We treat these as mount points for the original volume.
         int driveMask = NativeMethods.GetLogicalDrives();
         if (driveMask == 0)
         {
@@ -70,7 +68,8 @@ internal sealed class VolumeEnumerator : IDisposable
             throw new Win32Exception(lastErr, $"GetLogicalDrives() failed with Win32 error code {lastErr}");
         }
 
-        // if SUBST b: d:\ then this maps 'D' -> 'B' for later use.
+        // If "SUBST b: d:" then this maps 'D' -> 'B' for later use.
+        // There could be multiple SUBST mappings for a target drive volume.
         var driveLetterUpperToSubstDriveLetterUpper = new Dictionary<char, List<char>>();
 
         const int singleDriveMappingSize = 100;
