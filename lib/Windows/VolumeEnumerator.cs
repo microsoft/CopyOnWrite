@@ -60,13 +60,70 @@ internal sealed class VolumeEnumerator : IDisposable
     /// <returns></returns>
     public IEnumerable<VolumePaths> GetVolumesAndVolumePaths()
     {
+        // Get DOS drive mappings for SUBSTed drives. We treat these as mount points for the original volume.
+        int driveMask = NativeMethods.GetLogicalDrives();
+        if (driveMask == 0)
+        {
+            int lastErr = Marshal.GetLastWin32Error();
+            throw new Win32Exception(lastErr, $"GetLogicalDrives() failed with Win32 error code {lastErr}");
+        }
+
+        // If "SUBST b: d:" then this maps 'D' -> 'B' for later use.
+        // There could be multiple SUBST mappings for a target drive volume.
+        var driveLetterUpperToSubstDriveLetterUpper = new Dictionary<char, List<char>>();
+
+        const int singleDriveMappingSize = 100;
+        IntPtr lpszDosDeviceNames = Marshal.AllocHGlobal(sizeof(char) * singleDriveMappingSize);
+        try
+        {
+            for (int shift = 0; shift < 26; shift++)
+            {
+                int mask = 1 << shift;
+                if ((driveMask & mask) != 0)
+                {
+                    char driveLetter = (char)('A' + shift);
+                    string drive = driveLetter + ":";
+
+                    NativeMethods.QueryDosDevice(drive, lpszDosDeviceNames, singleDriveMappingSize);
+                    string? mappedToVolume = Marshal.PtrToStringUni(lpszDosDeviceNames);
+                    if (mappedToVolume != null)
+                    {
+                        if (mappedToVolume.StartsWith(@"\??\", StringComparison.Ordinal))
+                        {
+                            // SUBSTed drive mapping e.g. "\??\D:", pick the drive letter to add to the map.
+                            char mappedToDriveLetter = mappedToVolume[4];
+                            if (!driveLetterUpperToSubstDriveLetterUpper.TryGetValue(mappedToDriveLetter,
+                                    out List<char>? substDriveLetters))
+                            {
+                                substDriveLetters = new List<char>(1);
+                                driveLetterUpperToSubstDriveLetterUpper[mappedToDriveLetter] = substDriveLetters;
+                            }
+
+                            substDriveLetters.Add(driveLetter);
+                        }
+                        else
+                        {
+                            // Skip alternatives like these that indicate non-SUBST mappings:
+                            // \Device\HarddiskVolume3
+                        }
+                    }
+                }
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(lpszDosDeviceNames);
+        }
+
         while (GetNextVolume(out string? volumeName))
         {
-            yield return new VolumePaths(volumeName!, GetVolumePathNamesForVolumeName(volumeName!));
+            yield return new VolumePaths(volumeName!, GetVolumePathNamesForVolumeName(volumeName!, driveLetterUpperToSubstDriveLetterUpper));
         }
     }
 
-    private static IReadOnlyList<string> GetVolumePathNamesForVolumeName(string volumeName)
+    private static IReadOnlyList<string> GetVolumePathNamesForVolumeName(
+        string volumeName,
+        Dictionary<char, List<char>> driveLetterUpperToSubstDriveLettersUpper)
     {
         int bufferLenChars = 5; // Typical case: Drive root like "C:\" plus null character plus one (for some reason).
         IntPtr lpszVolumePathNames = Marshal.AllocHGlobal(sizeof(char) * bufferLenChars);
@@ -112,6 +169,21 @@ internal sealed class VolumeEnumerator : IDisposable
                 string volumePathName = Marshal.PtrToStringAuto(lpszVolumePathNames + (sizeof(char) * charsProcessed))!;
                 volumePathNames.Add(volumePathName);
                 charsProcessed += (volumePathName.Length + 1);
+
+                // Check for additional SUBST names to add to the volume path names.
+                // volumePathName like "C:\" means this volume is mounted to the C: drive, which
+                // could be SUBSTed in the DOS namespace to another drive like B:\ .
+                if (volumePathName.Length == 3 && volumePathName[1] == ':' && volumePathName[2] == '\\')
+                {
+                    if (driveLetterUpperToSubstDriveLettersUpper.TryGetValue(volumePathName[0],
+                        out List<char>? substDriveLetters))
+                    {
+                        foreach (char substDriveLetter in substDriveLetters)
+                        {
+                            volumePathNames.Add(substDriveLetter + @":\");
+                        }
+                    }
+                }
             }
 
             return volumePathNames;
