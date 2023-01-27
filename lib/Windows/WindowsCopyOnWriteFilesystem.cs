@@ -19,7 +19,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     // Each cloned region must be < 4GB in length. Use a smaller default.
     internal const long MaxChunkSize = 1L << 31;  // 2GB
 
-    private static readonly bool[] FalseBool = { false };
+    private static readonly NativeMethods.FILE_SET_SPARSE_BUFFER FalseSparseFlag = new () { SetSparse = false };
 
     private VolumeInfoCache _volumeInfoCache = VolumeInfoCache.BuildFromCurrentFilesystem();
     private readonly LockSet<string> _sourcePathLockSetForInProcessSerialization = new(StringComparer.OrdinalIgnoreCase);
@@ -291,13 +291,13 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 
         if ((cloneFlags & CloneFlags.DestinationMustMatchSourceSparseness) != 0 && sourceFileSparse == false)
         {
-            // The source file was non-sparse and we've directed to align them.
+            // The source file was non-sparse and we've been directed to align them.
             numBytesReturned = 0;
             if (!NativeMethods.DeviceIoControl(
                 destFileHandle,
                 NativeMethods.FSCTL_SET_SPARSE,
-                Marshal.UnsafeAddrOfPinnedArrayElement(FalseBool, 0),
-                Marshal.SizeOf(FalseBool[0]),
+                FalseSparseFlag,
+                Marshal.SizeOf(NativeMethods.FSCTL_SET_SPARSE),
                 null,
                 0,
                 ref numBytesReturned,

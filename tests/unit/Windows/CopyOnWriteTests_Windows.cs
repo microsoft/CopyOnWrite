@@ -362,6 +362,35 @@ public sealed class CopyOnWriteTests_Windows
         Assert.AreEqual(8192L, WindowsCopyOnWriteFilesystem.RoundUpToPowerOf2(4097, 4096));
     }
 
+    [TestMethod]
+    public async Task VerifyMatchingSparseness()
+    {
+        const string testSubDir = nameof(VerifyMatchingSparseness);
+        using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create(testSubDir);
+        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
+
+        string sparseFile = Path.Combine(refs.TestRootDir, "sparseFile");
+        await File.WriteAllTextAsync(sparseFile, "AABBCCDD");
+        ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"sparse setFlag {sparseFile}");
+        var fsutilResult = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"sparse queryFlag {sparseFile}");
+        Assert.AreEqual("This file is set as sparse", fsutilResult.Output.Trim());
+        string sparseFileClone = Path.Combine(refs.TestRootDir, "sparseFileClone");
+
+        string nonSparseFile = Path.Combine(refs.TestRootDir, "nonSparseFile");
+        await File.WriteAllTextAsync(nonSparseFile, "AABBCCDD");
+        fsutilResult = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"sparse queryFlag {nonSparseFile}");
+        Assert.AreEqual("This file is NOT set as sparse", fsutilResult.Output.Trim());
+        string nonSparseFileClone = Path.Combine(refs.TestRootDir, "nonSparseFileClone");
+
+        await cow.CloneFileAsync(sparseFile, sparseFileClone, CloneFlags.DestinationMustMatchSourceSparseness, CancellationToken.None);
+        fsutilResult = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"sparse queryFlag {sparseFileClone}");
+        Assert.AreEqual("This file is set as sparse", fsutilResult.Output.Trim());
+
+        await cow.CloneFileAsync(nonSparseFile, nonSparseFileClone, CloneFlags.DestinationMustMatchSourceSparseness, CancellationToken.None);
+        fsutilResult = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"sparse queryFlag {nonSparseFileClone}");
+        Assert.AreEqual("This file is NOT set as sparse", fsutilResult.Output.Trim());
+    }
+
     private static void CloneFileMissingSourceFileInExistingDir(string refsRoot, CloneFlags cloneFlags)
     {
         string sourceFilePath = Path.Combine(refsRoot, "source_" + nameof(CloneFileMissingSourceFileInExistingDir));
