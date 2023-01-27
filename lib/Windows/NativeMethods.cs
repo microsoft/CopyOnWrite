@@ -202,6 +202,12 @@ internal static class NativeMethods
     /// </summary>
     public const int MAX_VOLUME_GUID_LENGTH = 50;
 
+    [StructLayout(LayoutKind.Sequential)]
+    public sealed class FILE_SET_SPARSE_BUFFER
+    {
+        public bool SetSparse;
+    }
+
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern SafeVolumeFindHandle FindFirstVolume(
