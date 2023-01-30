@@ -67,7 +67,7 @@ public class CoWComparisons
         }
 
         // Must create a new CoW object because the filesystem layout may have changed if a VHD was added.
-        _cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
+        _cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true);
 
         _testOutputDir = Path.Combine(testRootDir, "Output");
         Directory.CreateDirectory(_testOutputDir);
@@ -123,7 +123,6 @@ public class CoWComparisons
 
             const CloneFlags highestPerfCloneFlags =
                 CloneFlags.NoFileIntegrityCheck |
-                CloneFlags.NoSerializedCloning |
                 CloneFlags.PathIsFullyResolved;
 
             _cow!.CloneFile(sourceFilePath, targetFilePath, highestPerfCloneFlags);

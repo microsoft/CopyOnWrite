@@ -14,14 +14,12 @@ namespace Microsoft.CopyOnWrite;
 /// <remarks>This implementation provides access to an appdomain-wide singleton.</remarks>
 public static class CopyOnWriteFilesystemFactory
 {
-    private static readonly Lazy<ICopyOnWriteFilesystem> InProcessLocksInstance = new(() => Create(useCrossProcessLocks: false));
-    private static readonly Lazy<ICopyOnWriteFilesystem> CrossProcessLocksInstance = new(() => Create(useCrossProcessLocks: true));
+    private static readonly Lazy<ICopyOnWriteFilesystem> Instance = new(Create);
 
     /// <summary>
     /// Gets an instance of the CoW filesystem appropriate for this operating system.
-    /// This instance uses in-process locks where needed for the current operating system.
     /// </summary>
-    public static ICopyOnWriteFilesystem GetInstance() => InProcessLocksInstance.Value;
+    public static ICopyOnWriteFilesystem GetInstance() => Instance.Value;
 
     /// <summary>
     /// Gets an instance of the CoW filesystem appropriate for this operating system.
@@ -32,30 +30,22 @@ public static class CopyOnWriteFilesystemFactory
     /// Consider instead using <paramref name="forceUniqueInstance"/>=false and utilize
     /// <see cref="ICopyOnWriteFilesystem.ClearFilesystemCache"/> to clear the cache on the singleton instance.
     /// </param>
-    /// <param name="useCrossProcessLocksWhereApplicable">
-    /// If true, uses cross-process locks where needed for the current operating system.
-    /// These locks are more expensive than in-process locks, but are required when cloning
-    /// the same source file across process boundaries. Example of cross-process requirement:
-    /// MSBuild uses many worker node processes that may all clone the same source to multiple
-    /// output locations. Counter-example for intra-process locking: If a build engine controls
-    /// all cloning of a source file from a content-addressable store into the filesystem.
-    /// </param>
-    public static ICopyOnWriteFilesystem GetInstance(bool forceUniqueInstance, bool useCrossProcessLocksWhereApplicable)
+    public static ICopyOnWriteFilesystem GetInstance(bool forceUniqueInstance)
     {
         if (forceUniqueInstance)
         {
-            return Create(useCrossProcessLocksWhereApplicable);
+            return Create();
         }
 
-        return useCrossProcessLocksWhereApplicable ? CrossProcessLocksInstance.Value : InProcessLocksInstance.Value;
+        return Instance.Value;
     }
 
-    private static ICopyOnWriteFilesystem Create(bool useCrossProcessLocks)
+    private static ICopyOnWriteFilesystem Create()
     {
         switch (Environment.OSVersion.Platform)
         {
             case PlatformID.Win32NT:
-                return new WindowsCopyOnWriteFilesystem(useCrossProcessLocks);
+                return new WindowsCopyOnWriteFilesystem();
             case PlatformID.Unix:
                 return new LinuxCopyOnWriteFilesystem();
             case PlatformID.MacOSX:
