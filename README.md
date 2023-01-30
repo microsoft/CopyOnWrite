@@ -28,33 +28,11 @@ if (canCloneInCurrentDirectory)
 }
 ```
 
-## Windows: Workarounds for ReFS parallel cloning bug
-As of September 2022, in Server 2022 and Windows 10 and 11 when cloning a single recently written source file
-in parallel the resulting cloned file can sometimes end up with all zeroes for its content. This comes from
-a bug in ReFS; see https://github.com/microsoft/CopyOnWrite/issues/12 for more details.
-This library provides workarounds for this problem, or you can change how source files are written to
-ensure they are flushed to disk before performing parallel clones. The workarounds include:
-
-* Serialize cloning system-wide per source path. You could accomplish this by ensuring only a single thread
-  can clone a single source file at a time. This library takes this approach by default for single-process
-  cloning by using an in-memory dictionary. You can opt into system-wide serialization using kernel mutexes
-  by specifying `useCrossProcessLocksWhereApplicable = true` when calling `CopyOnWriteFilesystemFactory.GetInstance()`.
-* Ensure the source file is completely flushed to disk before cloning. This can be accomplished through
-  one of the approaches below. Note that if you use these approaches, you can increase performance of cloning
-  by using `CloneFileFlags.NoSerializedCloning` on your `CloneFile` calls.
-  * Use the FlushFileBuffers API to force the file to be flushed from memory. This should be called at the end
-    of writing the source file to disk while the file write handle is still open. Alternately it could be called
-    on a new handle to the file opened with GENERIC_WRITE.
-  * When writing the source file, open the file handle with FILE_FLAG_NO_BUFFERING. However, note this requires the
-    code writing to the file to deal with writing chunks aligned with the sector size of the underlying volume,
-    and using chunks that are a multiple of the sector size.
-  * When writing the source file, open the file handle with FILE_FLAG_WRITE_THROUGH. This forces a flush on every write,
-    which can decrease performance significantly.
-
 ## Release History
 [NuGet package](https://www.nuget.org/packages/CopyOnWrite):
 
-* 0.2.2 January 2023 Fix mismatched sparseness when `CloneFlags.DestinationMustMatchSourceSparseness` was used (https://github.com/microsoft/CopyOnWrite/issues/17)
+* 0.3.0 January 2023: Remove Windows serialization by path along with `CloneFlags.NoSerializedCloning` and the `useCrossProcessLocksWhereApplicable` flag to `CopyOnWriteFilesystemFactory`. The related concurrency bug in Windows was fixed in recent patches and retested on Windows 11.
+* 0.2.2 January 2023: Fix mismatched sparseness when `CloneFlags.DestinationMustMatchSourceSparseness` was used (https://github.com/microsoft/CopyOnWrite/issues/17)
 * 0.2.1 September 2022: Add detection for DOS SUBST drives as additional source of mappings.
 * 0.2.0 September 2022: Improve documentation for ReFS parallel cloning bug workarounds.
   Improve Windows cloning performance by 7.2% by using sparse destination files.

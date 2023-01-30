@@ -26,7 +26,7 @@ public sealed class CopyOnWriteTests_Windows
     [DataRow(true)]
     public void NtfsNegativeDetectionAndFailureToCopyExtents(bool fullyResolvedPaths)
     {
-        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
+        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true);
         bool anyNtfsFound = false;
         foreach (DriveInfo driveInfo in DriveInfo.GetDrives()
             .Where(di => di.IsReady))
@@ -54,7 +54,7 @@ public sealed class CopyOnWriteTests_Windows
     [TestMethod]
     public async Task TempDirValidateCloneFileFailureIfNtfs()
     {
-        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
+        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true);
         using var tempDir = new DisposableTempDirectory();
         var tempDriveInfo = new DriveInfo(tempDir.Path.Substring(0, 1));
         if (string.Equals(tempDriveInfo.DriveFormat, "NTFS", StringComparison.OrdinalIgnoreCase))
@@ -90,17 +90,15 @@ public sealed class CopyOnWriteTests_Windows
 
     [TestMethod]
     [TestCategory("Admin")]
-    [DataRow(CloneFlags.None, false)]
-    [DataRow(CloneFlags.None, true)]
-    [DataRow(CloneFlags.NoFileIntegrityCheck, false)]
-    [DataRow(CloneFlags.DestinationMustMatchSourceSparseness, false)]
-    [DataRow(CloneFlags.NoSerializedCloning, false)]
-    [DataRow(CloneFlags.PathIsFullyResolved, false)]
-    public async Task ReFSPositiveDetectionAndCloneFileCorrectBehavior(CloneFlags cloneFlags, bool useCrossProcessLocks)
+    [DataRow(CloneFlags.None)]
+    [DataRow(CloneFlags.NoFileIntegrityCheck)]
+    [DataRow(CloneFlags.DestinationMustMatchSourceSparseness)]
+    [DataRow(CloneFlags.PathIsFullyResolved)]
+    public async Task ReFSPositiveDetectionAndCloneFileCorrectBehavior(CloneFlags cloneFlags)
     {
         using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create($"{nameof(ReFSPositiveDetectionAndCloneFileCorrectBehavior)}({(int)cloneFlags})");
 
-        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocks);
+        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true);
         string refsTestRoot = refs.TestRootDir;
 
         Assert.IsTrue(cow.CopyOnWriteLinkSupportedInDirectoryTree(refsTestRoot));
@@ -192,17 +190,15 @@ public sealed class CopyOnWriteTests_Windows
 
     [TestMethod]
     [TestCategory("Admin")]
-    [DataRow(false, false)]
-    [DataRow(false, true)]
-    [DataRow(true, false)]
-    [DataRow(true, true)]
-    public async Task ReFSMountAndCacheClearingBehavior(bool useCrossProcessLocks, bool fullyResolvedPaths)
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task ReFSMountAndCacheClearingBehavior(bool fullyResolvedPaths)
     {
         const string testSubDir = nameof(ReFSMountAndCacheClearingBehavior);
         using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create(testSubDir);
 
         // Create a filesystem object before mounting the ReFS volume to allow cache semantics check.
-        ICopyOnWriteFilesystem cowBeforeMount = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocks);
+        ICopyOnWriteFilesystem cowBeforeMount = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true);
 
         // Mount the ReFS volume under the C: drive before creating a filesystem object that will read current filesystem state.
         const string cDriveBaseTestDir = @"C:\CoWMountTest";
@@ -219,7 +215,7 @@ public sealed class CopyOnWriteTests_Windows
             ProcessExecutionUtilities.RunAndCaptureOutput("diskpart", $"/s {diskPartScriptPath}");
             try
             {
-                ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocks);
+                ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true);
 
                 // C: drive (NTFS).
                 Assert.IsFalse(cow.CopyOnWriteLinkSupportedInDirectoryTree(@"C:\", fullyResolvedPaths));
@@ -295,7 +291,7 @@ public sealed class CopyOnWriteTests_Windows
             Assert.Fail("Could not find two open drive letters");
         }
 
-        ICopyOnWriteFilesystem cowBeforeSubst = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
+        ICopyOnWriteFilesystem cowBeforeSubst = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true);
 
         foreach (char openDriveLetter in openDriveLetters)
         {
@@ -322,7 +318,7 @@ public sealed class CopyOnWriteTests_Windows
 
         try
         {
-            ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
+            ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true);
 
             foreach (char openDriveLetter in openDriveLetters)
             {
@@ -346,7 +342,7 @@ public sealed class CopyOnWriteTests_Windows
     [TestMethod]
     public void UncPathsNotLinkable()
     {
-        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
+        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true);
         const string uncSourcePath = @"\\someMachine\someShare";
         Assert.IsFalse(
             cow.CopyOnWriteLinkSupportedBetweenPaths(uncSourcePath, @"\\otherMachine\otherShare"));
@@ -367,7 +363,7 @@ public sealed class CopyOnWriteTests_Windows
     {
         const string testSubDir = nameof(VerifyMatchingSparseness);
         using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create(testSubDir);
-        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true, useCrossProcessLocksWhereApplicable: false);
+        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true);
 
         string sparseFile = Path.Combine(refs.TestRootDir, "sparseFile");
         await File.WriteAllTextAsync(sparseFile, "AABBCCDD");
@@ -470,26 +466,19 @@ public sealed class CopyOnWriteTests_Windows
                 string content = $"1234abcd_{file}";
                 await File.WriteAllTextAsync(origFilePath, content);
 
-                try
+                Parallel.For(0, numClones, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, i =>
                 {
-                    Parallel.For(0, numClones, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, i =>
+                    string testPath = Path.Combine(stressFolder, $"test{i}_par{parallelism}_cloneflags{(int)cloneFlags}");
+                    try
                     {
-                        string testPath = Path.Combine(stressFolder, $"test{i}_par{parallelism}_cloneflags{(int)cloneFlags}");
-                        try
-                        {
-                            cow.CloneFile(origFilePath, testPath, cloneFlags);
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new AssertFailedException($"{testPath} file {i} parallelism {parallelism} CloneFlags {cloneFlags}", ex);
-                        }
-                        Assert.AreEqual(content, File.ReadAllText(testPath), "{0} file {1} parallelism {2} CloneFlags {3}", testPath, i, parallelism, cloneFlags);
-                    });
-                }
-                catch (AggregateException aggEx) when (cloneFlags.HasFlag(CloneFlags.NoSerializedCloning) && parallelism > 1)
-                {
-                    throw new AssertInconclusiveException("Windows CoW: Expected instability when disabling serialization on multithreaded tests (https://github.com/microsoft/CopyOnWrite/issues/12)", aggEx);
-                }
+                        cow.CloneFile(origFilePath, testPath, cloneFlags);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new AssertFailedException($"{testPath} file {i} parallelism {parallelism} CloneFlags {cloneFlags}", ex);
+                    }
+                    Assert.AreEqual(content, File.ReadAllText(testPath), "{0} file {1} parallelism {2} CloneFlags {3}", testPath, i, parallelism, cloneFlags);
+                });
             }
 
             Console.WriteLine($"Stress: Parallelism {parallelism}, files {numFiles}, clones per file {numClones}: {sw.Elapsed.TotalMilliseconds:F3}ms");

@@ -22,14 +22,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     private static readonly NativeMethods.FILE_SET_SPARSE_BUFFER FalseSparseFlag = new () { SetSparse = false };
 
     private VolumeInfoCache _volumeInfoCache = VolumeInfoCache.BuildFromCurrentFilesystem();
-    private readonly LockSet<string> _sourcePathLockSetForInProcessSerialization = new(StringComparer.OrdinalIgnoreCase);
-    private readonly bool _useCrossProcessLocks;
     
-    public WindowsCopyOnWriteFilesystem(bool useCrossProcessLocks)
-    {
-        _useCrossProcessLocks = useCrossProcessLocks;
-    }
-
     // https://docs.microsoft.com/en-us/windows-server/storage/refs/block-cloning#functionality-restrictions-and-remarks
     /// <inheritdoc />
     public int MaxClonesPerFile => 8175;
@@ -90,7 +83,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         CloneFileAsync(source, destination, cloneFlags, CancellationToken.None).GetAwaiter().GetResult();
     }
 
-    public async
+    public
 #if NET6_0 || NETSTANDARD2_1
     ValueTask
 #elif NETSTANDARD2_0
@@ -243,51 +236,7 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                 $"Failed to set end of file with winerror {lastErr} on destination file '{destination}'");
         }
 
-        IDisposable lockHandle;
-        if (!cloneFlags.HasFlag(CloneFlags.NoSerializedCloning))
-        {
-            if (_useCrossProcessLocks)
-            {
-                string mutexName = $@"Global\{resolvedSource.ToUpperInvariant().Replace(':', '_').Replace('\\', '_')}";
-                var mutex = new Mutex(false, mutexName);
-                Thread.BeginThreadAffinity();
-                try
-                {
-                    mutex.WaitOne(); // No async available: affinitized to current thread.
-                }
-                catch (AbandonedMutexException)
-                {
-                    // We got the lock on the mutex despite it being abandoned by another thread/process.
-                }
-
-                lockHandle = mutex;
-            }
-            else
-            {
-                lockHandle = await _sourcePathLockSetForInProcessSerialization.AcquireAsync(resolvedSource);
-            }
-        }
-        else
-        {
-            lockHandle = new LockSet<string>.LockHandle();
-        }
-
-        try
-        {
-            DuplicateExtents(sourceFileHandle, destFileHandle, sourceFileLength, sourceVolume, source, destination);
-        }
-        finally
-        {
-            if (!cloneFlags.HasFlag(CloneFlags.NoSerializedCloning))
-            {
-                lockHandle.Dispose();
-            }
-
-            if (_useCrossProcessLocks)
-            {
-                Thread.EndThreadAffinity();
-            }
-        }
+        DuplicateExtents(sourceFileHandle, destFileHandle, sourceFileLength, sourceVolume, source, destination);
 
         if ((cloneFlags & CloneFlags.DestinationMustMatchSourceSparseness) != 0 && sourceFileSparse == false)
         {
@@ -308,6 +257,14 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                     $"Failed to turn off file sparseness with winerror {lastErr} for destination file '{destination}'");
             }
         }
+
+#if NET6_0 || NETSTANDARD2_1
+        return ValueTask.CompletedTask;
+#elif NETSTANDARD2_0
+        return Task.CompletedTask;
+#else
+#error Target Framework not supported
+#endif
     }
 
     // Separate method to avoid error creating DUPLICATE_EXTENTS_DATA on stack in async method.

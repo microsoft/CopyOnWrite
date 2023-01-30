@@ -163,19 +163,8 @@ public enum CloneFlags
     DestinationMustMatchSourceSparseness = 0x02,
 
     /// <summary>
-    /// Do not serialize clone creation if the OS's CoW facility cannot handle multi-threaded clone calls
-    /// in a stable way (Windows as of Server 2022 / Windows 10 and 11). See 
-    ///
-    /// Specify this flag if:
-    /// * You know that only one clone of a source file will be performed at a time across all processes.
-    /// * You know that the source file is fully flushed to disk prior to starting parallel clones.
-    ///   See https://github.com/microsoft/CopyOnWrite/blob/main/README.md .
-    /// </summary>
-    NoSerializedCloning = 0x04,
-
-    /// <summary>
     /// Avoids expensive calls to <see cref="System.IO.Path.GetFullPath(string)"/> to resolve the full path by asserting
     /// that the caller already called it for the source and destination paths.
     /// </summary>
-    PathIsFullyResolved = 0x08,
+    PathIsFullyResolved = 0x04,
 }
