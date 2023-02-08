@@ -137,6 +137,8 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         }
 
         // Set the destination to be sparse while we clone.
+        // Important to avoid allocating zero-backed real storage when calling SetFileInformationByHandle()
+        // below which will just be released when cloning file extents.
         int numBytesReturned = 0;
         if (!NativeMethods.DeviceIoControl(
                 destFileHandle,
