@@ -108,6 +108,7 @@ internal sealed class VolumeInfoCache
     }
 
     private const int ERROR_NOT_READY = 21;
+    private const int ERROR_INVALID_PARAMETER = 87;
 
     private static VolumeInfo? GetVolumeInfo(VolumePaths volumePaths)
     {
@@ -123,7 +124,7 @@ internal sealed class VolumeInfoCache
         if (!result)
         {
             int lastErr = Marshal.GetLastWin32Error();
-            if (lastErr == ERROR_NOT_READY)
+            if (lastErr == ERROR_NOT_READY || lastErr == ERROR_INVALID_PARAMETER)
             {
                 return null;
             }
