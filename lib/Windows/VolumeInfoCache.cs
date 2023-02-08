@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Microsoft.CopyOnWrite.Windows;
@@ -90,16 +91,11 @@ internal sealed class VolumeInfoCache
         // Paths are sorted in reverse order to get longer paths ahead of shorter paths for prefix matching.
         // For cases where volumes are mounted under other volumes, e.g. a D: ReFS drive mounted
         // under D:\ReFS, we want to match the deeper path.
-        foreach (SubPathAndVolume spv in subPathsAndVolumes)
+        foreach (SubPathAndVolume spv in subPathsAndVolumes.Where(spv => spv.Volume is not null))
         {
             if (path.IsSubpathOf(spv.SubPath))
             {
-                if (spv.Volume == null)
-                {
-                    break;
-                }
-
-                return spv.Volume;
+                return spv.Volume!;
             }
         }
 
@@ -124,6 +120,9 @@ internal sealed class VolumeInfoCache
         if (!result)
         {
             int lastErr = Marshal.GetLastWin32Error();
+
+            // Some SD Card readers show a drive letter even when empty.
+            // Instead of erroring out, let's just ignore those.
             if (lastErr == ERROR_NOT_READY || lastErr == ERROR_INVALID_PARAMETER)
             {
                 return null;
