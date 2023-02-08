@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Microsoft.CopyOnWrite.Windows;
@@ -11,14 +12,14 @@ internal sealed class VolumeInfoCache
 {
     private sealed class SubPathAndVolume
     {
-        public SubPathAndVolume(string subPath, VolumeInfo volumeInfo)
+        public SubPathAndVolume(string subPath, VolumeInfo? volumeInfo)
         {
             SubPath = subPath;
             Volume = volumeInfo;
         }
 
         public readonly string SubPath;
-        public readonly VolumeInfo Volume;
+        public readonly VolumeInfo? Volume;
     }
 
     private static readonly char[] Backslash = { '\\' };
@@ -28,7 +29,7 @@ internal sealed class VolumeInfoCache
 
     public static VolumeInfoCache BuildFromCurrentFilesystem()
     {
-        var fsInfo = new List<(VolumePaths, VolumeInfo)>();
+        var fsInfo = new List<(VolumePaths, VolumeInfo?)>();
         using var volumeEnum = new VolumeEnumerator();
         foreach (VolumePaths volumePaths in volumeEnum.GetVolumesAndVolumePaths())
         {
@@ -39,7 +40,7 @@ internal sealed class VolumeInfoCache
     }
 
     // Exposed for unit testing.
-    internal VolumeInfoCache(IList<(VolumePaths, VolumeInfo)> volumesAndMountedPaths)
+    internal VolumeInfoCache(IList<(VolumePaths, VolumeInfo?)> volumesAndMountedPaths)
     {
         _driveLetterSubPathsSortedInReverseOrder = new SubPathAndVolume[26][];
         for (int i = 0; i < _driveLetterSubPathsSortedInReverseOrder.Length; i++)
@@ -47,7 +48,7 @@ internal sealed class VolumeInfoCache
             _driveLetterSubPathsSortedInReverseOrder[i] = Array.Empty<SubPathAndVolume>();
         }
 
-        foreach ((VolumePaths volumePaths, VolumeInfo volumeInfo) in volumesAndMountedPaths)
+        foreach ((VolumePaths volumePaths, VolumeInfo? volumeInfo) in volumesAndMountedPaths)
         {
             foreach (string mountedPath in volumePaths.MountedAtPaths)
             {
@@ -90,11 +91,11 @@ internal sealed class VolumeInfoCache
         // Paths are sorted in reverse order to get longer paths ahead of shorter paths for prefix matching.
         // For cases where volumes are mounted under other volumes, e.g. a D: ReFS drive mounted
         // under D:\ReFS, we want to match the deeper path.
-        foreach (SubPathAndVolume spv in subPathsAndVolumes)
+        foreach (SubPathAndVolume spv in subPathsAndVolumes.Where(spv => spv.Volume is not null))
         {
             if (path.IsSubpathOf(spv.SubPath))
             {
-                return spv.Volume;
+                return spv.Volume!;
             }
         }
 
@@ -102,7 +103,10 @@ internal sealed class VolumeInfoCache
                                     "If the drive was added recently you may need to recreate the filesystem cache.");
     }
 
-    private static VolumeInfo GetVolumeInfo(VolumePaths volumePaths)
+    private const int ERROR_NOT_READY = 21;
+    private const int ERROR_INVALID_PARAMETER = 87;
+
+    private static VolumeInfo? GetVolumeInfo(VolumePaths volumePaths)
     {
         bool result = NativeMethods.GetVolumeInformation(
             volumePaths.VolumeName,
@@ -116,6 +120,14 @@ internal sealed class VolumeInfoCache
         if (!result)
         {
             int lastErr = Marshal.GetLastWin32Error();
+
+            // Some SD Card readers show a drive letter even when empty.
+            // Instead of erroring out, let's just ignore those.
+            if (lastErr == ERROR_NOT_READY || lastErr == ERROR_INVALID_PARAMETER)
+            {
+                return null;
+            }
+
             NativeMethods.ThrowSpecificIoException(lastErr,
                 $"Failed retrieving volume information for {volumePaths.PrimaryDriveRootPath} with winerror {lastErr}");
         }
