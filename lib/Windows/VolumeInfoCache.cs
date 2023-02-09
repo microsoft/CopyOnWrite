@@ -105,6 +105,7 @@ internal sealed class VolumeInfoCache
 
     private const int ERROR_NOT_READY = 21;
     private const int ERROR_INVALID_PARAMETER = 87;
+    private const int ERROR_UNRECOGNIZED_VOLUME = 1005;
 
     private static VolumeInfo? GetVolumeInfo(VolumePaths volumePaths)
     {
@@ -123,7 +124,9 @@ internal sealed class VolumeInfoCache
 
             // Some SD Card readers show a drive letter even when empty.
             // Instead of erroring out, let's just ignore those.
-            if (lastErr == ERROR_NOT_READY || lastErr == ERROR_INVALID_PARAMETER)
+            if (lastErr == ERROR_UNRECOGNIZED_VOLUME ||
+                lastErr == ERROR_NOT_READY ||
+                lastErr == ERROR_INVALID_PARAMETER)
             {
                 return null;
             }
