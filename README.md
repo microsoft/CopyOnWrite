@@ -66,6 +66,7 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 * 0.1.0 July 2021: Windows ReFS support. Mac and Linux throw NotSupportedException.
 
 ## Related Works
+* MSBuild SDK plugin to replace Copy task with one that supports CoW: https://github.com/microsoft/MSBuildSdks/tree/main/src/CopyOnWrite
 * Rust CoW: https://github.com/nicokoch/reflink
 
 ## Contributing
