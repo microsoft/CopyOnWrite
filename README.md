@@ -38,7 +38,8 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 
 
 ## Release History
-[NuGet package](https://www.nuget.org/packages/CopyOnWrite):
+
+[![NuGet version (CopyOnWrite)](https://img.shields.io/nuget/v/CopyOnWrite?style=plastic)](https://www.nuget.org/packages/CopyOnWrite)
 
 * 0.3.2 February 2023: Fix issue with ERROR_UNRECOGNIZED_VOLUME returned from some volumes causing an error on initialization on some machines.
 * 0.3.1 February 2023: Fix issue with Windows drive information scanning hanging reading removable SD Card drives. Updated README with Windows clone behavior.
