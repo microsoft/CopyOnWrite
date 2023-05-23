@@ -93,7 +93,7 @@ Defender real-time scanning was disabled in the test directory.
 See CoWComparisons.cs. Machine was an 8/16-core with NVMe.
 
 #### Windows 11 Prerelease 2H23 with Dev Drive
-[Dev Drive](https://learn.microsoft.com/en-us/windows/dev-environment/dev-drive/) is a new evolution of the ReFS filesystem starting in the Windows 11 23H2 refresh. It was [announced](https://build.microsoft.com/en-US/sessions/55327bc8-6d99-40c5-8923-ab78c3d24c06?source=sessions) at Microsoft Build 2023, and features significantly faster execution vs. 22H2 ReFS or NTFS along with CoW support and a performance mode for Defender antivirus. More details can be found [here](https://aka.ms/EngMSDevDrive).
+[Dev Drive](https://aka.ms/devdrive) is a new evolution of the ReFS filesystem starting in the Windows 11 23H2 refresh. It was announced at Microsoft Build 2023, and features significantly faster execution vs. 22H2 ReFS or NTFS along with CoW support and a performance mode for Defender antivirus. More details can be found [here](https://aka.ms/EngMSDevDrive).
 
 CoW links on Dev Drive take approximately constant time except at large file sizes.
 The savings is proportional to the file size, with 16MB files at about 31X performance, 1MB at 5.9X, and small sizes at about 2X.
