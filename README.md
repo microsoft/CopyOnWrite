@@ -9,7 +9,7 @@ This library allows a .NET developer to:
 
 Discovery is important, as different operating systems and different filesystems available for those operating systems provide varying levels of CoW link support:
 
-* Windows: The default NTFS filesystem does NOT support CoW, but the ReFS filesystem does.
+* Windows: The default NTFS filesystem does NOT support CoW, but the ReFS filesystem and 2023's new Dev Drive do.
 * Linux: Btrfs, Xfs, Zfs support CoW while ext4 does not.
 * Mac: AppleFS supports CoW by default.
 
@@ -34,7 +34,7 @@ if (canCloneInCurrentDirectory)
 File clones on Windows do not actually allocate space on-drive for the clone. This has a good and a possibly bad implication:
 
 * Good: You save space on-disk, as the clones only take up space for region clone metadata (small).
-* Possibly bad: If cloned files are opened for append, the lazy materialization of the original content into the opened file may result in disk out-of-space errors.
+* Possibly bad: If cloned files are opened for append or random-access write, the lazy materialization of the original content into the opened file may result in disk out-of-space errors.
 
 
 ## Release History
@@ -87,12 +87,47 @@ You must run tests elevated (as admin), e.g. by opening Visual Studio as an admi
 ## Performance Comparisons
 
 ### Windows
-CoW links on ReFS take approximately constant time, saving time over file copies except at file size zero.
-The savings is proportional to the file size, with 16MB files at about 35X performance, 1MB at 3.2X, and small sizes at about 1.3X.
-
-Detailed numbers for a VHD formatted empty with ReFS for each iteration, comparing `System.IO.File.Copy()` with `CloneFile()`,
+The following tests on various versions of Windows compare `System.IO.File.Copy()` with `CloneFile()`,
 50 copies/clones of a single source file per measurement, highest performance clone flags and settings.
-See CoWComparisons.cs. Machine was an 8/16-core, NVMe, Win11 22H1 Enterprise.
+Defender real-time scanning was disabled in the test directory.
+See CoWComparisons.cs. Machine was an 8/16-core with NVMe.
+
+#### Windows 11 Prerelease 2H23 with Dev Drive
+[Dev Drive](https://learn.microsoft.com/en-us/windows/dev-environment/dev-drive/) is a new evolution of the ReFS filesystem starting in the Windows 11 23H2 refresh. It was [announced](https://build.microsoft.com/en-US/sessions/55327bc8-6d99-40c5-8923-ab78c3d24c06?source=sessions) at Microsoft Build 2023, and features significantly faster execution vs. 22H2 ReFS or NTFS along with CoW support and a performance mode for Defender antivirus. More details can be found [here](https://aka.ms/EngMSDevDrive).
+
+CoW links on Dev Drive take approximately constant time except at large file sizes.
+The savings is proportional to the file size, with 16MB files at about 31X performance, 1MB at 5.9X, and small sizes at about 2X.
+Note that all performance numbers are significantly better than the no-VHD 22H2 measurements at the bottom of this page,
+reflecting the Windows Filesystem team's work to reduce overhead for Dev Drive.
+
+The Windows Insider build used for testing was from early May, 2023.
+
+|    Method | FileSize |       Mean |     Error |    StdDev |     Median | Ratio | RatioSD |
+|---------- |--------- |-----------:|----------:|----------:|-----------:|------:|--------:|
+| File.Copy |        0 |   136.0 us |   3.95 us |  11.57 us |   135.5 us |  1.00 |    0.00 |
+|       CoW |        0 |   102.9 us |   2.82 us |   8.17 us |   102.3 us |  0.76 |    0.08 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |        1 |   305.4 us |   7.50 us |  21.26 us |   305.4 us |  1.00 |    0.00 |
+|       CoW |        1 |   130.6 us |   3.96 us |  11.16 us |   129.5 us |  0.43 |    0.05 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |     1024 |   301.9 us |   6.77 us |  18.98 us |   301.7 us |  1.00 |    0.00 |
+|       CoW |     1024 |   133.6 us |   3.94 us |  11.49 us |   132.0 us |  0.44 |    0.04 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |    16384 |   274.5 us |   6.35 us |  17.92 us |   272.4 us |  1.00 |    0.00 |
+|       CoW |    16384 |   132.1 us |   3.69 us |  10.75 us |   132.4 us |  0.48 |    0.05 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |   262144 |   409.9 us |   8.53 us |  24.34 us |   408.0 us |  1.00 |    0.00 |
+|       CoW |   262144 |   134.3 us |   5.48 us |  15.74 us |   131.4 us |  0.33 |    0.04 |
+|           |          |            |           |           |            |       |         |
+| File.Copy |  1048576 |   774.4 us |  22.11 us |  65.20 us |   757.9 us |  1.00 |    0.00 |
+|       CoW |  1048576 |   132.7 us |   2.62 us |   6.53 us |   131.2 us |  0.18 |    0.01 |
+|           |          |            |           |           |            |       |         |
+| File.Copy | 16777216 | 6,571.5 us | 131.19 us | 239.89 us | 6,520.5 us |  1.00 |    0.00 |
+|       CoW | 16777216 |   210.3 us |   5.32 us |  15.34 us |   205.2 us |  0.03 |    0.00 |
+
+#### Windows 11 release 2H22
+Detailed numbers for a VHD formatted empty with ReFS for each iteration.
+16MB files are about 35X performance, 1MB at 3.2X, and small sizes at about 1.3X.
 
 |    Method | FileSize |       Mean |     Error |    StdDev |     Median | Ratio | RatioSD |
 |---------- |--------- |-----------:|----------:|----------:|-----------:|------:|--------:|
