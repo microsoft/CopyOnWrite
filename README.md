@@ -1,5 +1,7 @@
 The CopyOnWrite library provides a .NET layer on top of OS-specific logic that provides copy-on-write linking for files (a.k.a. CoW, file cloning, or reflinking). CoW linking provides the ability to copy a file without actually copying the original file's bytes from one disk location to another. The filesystem is in charge of ensuring that if the original file is modified or deleted, the CoW linked files remain unmodified by lazily copying the original file's bytes into each link. Unlike symlinks or hardlinks, writes to CoW links do not write through to the original file, as the filesystem breaks the link and copies in a lazy fashion. This enables scenarios like file caches where a single copy of a file held in a content-addressable or other store is safely linked to many locations in a filesystem with low I/O overhead.
 
+*NOTE: In the current package version only Windows functionality is implemented. Issues for [Linux](https://github.com/microsoft/CopyOnWrite/issues/10) and [Mac](https://github.com/microsoft/CopyOnWrite/issues/11) are open and contributions are welcome. Consider reimplementing from the Rust package linked below.*
+
 This library allows a .NET developer to:
 
 * Discover whether CoW links are allowed between two filesystem paths,
