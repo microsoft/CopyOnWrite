@@ -43,6 +43,7 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 
 [![NuGet version (CopyOnWrite)](https://img.shields.io/nuget/v/CopyOnWrite?style=plastic)](https://www.nuget.org/packages/CopyOnWrite)
 
+* 0.3.3 July 2023: For Linux and Mac unimplemented filesystems, return false from `CopyOnWriteLinkSupported...` methods to avoid the need for checking for Windows OS before calling.
 * 0.3.2 February 2023: Fix issue with ERROR_UNRECOGNIZED_VOLUME returned from some volumes causing an error on initialization on some machines.
 * 0.3.1 February 2023: Fix issue with Windows drive information scanning hanging reading removable SD Card drives. Updated README with Windows clone behavior.
 * 0.3.0 January 2023: Remove Windows serialization by path along with `CloneFlags.NoSerializedCloning` and the `useCrossProcessLocksWhereApplicable` flag to `CopyOnWriteFilesystemFactory`. The related concurrency bug in Windows was fixed in recent patches and retested on Windows 11.

@@ -13,16 +13,12 @@ internal sealed class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 
     public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination, bool pathsAreFullyResolved = false)
     {
-        // AppleFS always supports CoW.
-        // return true;
-        throw new NotImplementedException();
+        return false;
     }
 
     public bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory, bool pathIsFullyResolved = false)
     {
-        // AppleFS always supports CoW.
-        // return true;
-        throw new NotImplementedException();
+        return false;
     }
 
     public void CloneFile(string source, string destination) => CloneFile(source, destination, CloneFlags.None);
@@ -48,6 +44,5 @@ internal sealed class MacCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 
     public void ClearFilesystemCache()
     {
-        throw new NotImplementedException();
     }
 }

@@ -24,7 +24,7 @@
   <PropertyGroup>
 
     <!-- DOCSYNC: When changing version number update README.md -->
-    <Version>0.3.2.0</Version>
+    <Version>0.3.3.0</Version>
 
     <Company>Microsoft</Company>
     <Copyright>Copyright (c) Microsoft Corporation</Copyright>

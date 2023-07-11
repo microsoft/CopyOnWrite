@@ -14,12 +14,12 @@ internal sealed class LinuxCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     public bool CopyOnWriteLinkSupportedBetweenPaths(string source, string destination, bool pathsAreFullyResolved = false)
     {
         // TODO: Implement FS probing and return a real value.
-        throw new NotImplementedException();
+        return false;
     }
 
     public bool CopyOnWriteLinkSupportedInDirectoryTree(string rootDirectory, bool pathIsFullyResolved = false)
     {
-        throw new NotImplementedException();
+        return false;
     }
 
     public void CloneFile(string source, string destination) => CloneFile(source, destination, CloneFlags.None);
@@ -45,6 +45,5 @@ internal sealed class LinuxCopyOnWriteFilesystem : ICopyOnWriteFilesystem
 
     public void ClearFilesystemCache()
     {
-        throw new NotImplementedException();
     }
 }
