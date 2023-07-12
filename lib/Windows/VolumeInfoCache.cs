@@ -106,6 +106,7 @@ internal sealed class VolumeInfoCache
     private const int ERROR_NOT_READY = 21;
     private const int ERROR_INVALID_PARAMETER = 87;
     private const int ERROR_UNRECOGNIZED_VOLUME = 1005;
+    private const int FVE_E_LOCKED_VOLUME = unchecked((int)0x80310000);
 
     private static VolumeInfo? GetVolumeInfo(VolumePaths volumePaths)
     {
@@ -122,11 +123,12 @@ internal sealed class VolumeInfoCache
         {
             int lastErr = Marshal.GetLastWin32Error();
 
-            // Some SD Card readers show a drive letter even when empty.
+            // Some SD Card readers show a drive letter even when empty, and BitLocker can have a volume locked.
             // Instead of erroring out, let's just ignore those.
             if (lastErr == ERROR_UNRECOGNIZED_VOLUME ||
                 lastErr == ERROR_NOT_READY ||
-                lastErr == ERROR_INVALID_PARAMETER)
+                lastErr == ERROR_INVALID_PARAMETER ||
+                lastErr == FVE_E_LOCKED_VOLUME)
             {
                 return null;
             }
