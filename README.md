@@ -43,6 +43,7 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 
 [![NuGet version (CopyOnWrite)](https://img.shields.io/nuget/v/CopyOnWrite?style=plastic)](https://www.nuget.org/packages/CopyOnWrite)
 
+* 0.3.6 July 2023: Set AssemblyVersion to 0.9.9999.0 to allow mixing different minor-version binaries from different packages in the same appdomain/process.
 * 0.3.5 July 2023: Set AssemblyVersion to 0.0.0.1 to allow mixing different minor-version binaries from different packages in the same appdomain/process.
 * 0.3.4 July 2023: Handle locked BitLocker volume during volume scan.
 * 0.3.3 July 2023: For Linux and Mac unimplemented filesystems, return false from `CopyOnWriteLinkSupported...` methods to avoid the need for checking for Windows OS before calling.
