@@ -75,6 +75,7 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 
 ## Related Works
 * MSBuild SDK plugin to replace Copy task with one that supports CoW: https://github.com/microsoft/MSBuildSdks/tree/main/src/CopyOnWrite
+* CoW now available in the [`Microsoft.Build.Artifacts`](https://github.com/microsoft/MSBuildSdks/tree/main/src/Artifacts) MSBuild SDK plugin to speed up file copies for artifact staging.
 * Rust CoW: https://github.com/nicokoch/reflink
 
 ## Contributing
