@@ -103,6 +103,7 @@ internal sealed class VolumeInfoCache
                                     "If the drive was added recently you may need to recreate the filesystem cache.");
     }
 
+    private const int ERROR_ACCESS_DENIED = 5;
     private const int ERROR_NOT_READY = 21;
     private const int ERROR_INVALID_PARAMETER = 87;
     private const int ERROR_UNRECOGNIZED_VOLUME = 1005;
@@ -123,12 +124,16 @@ internal sealed class VolumeInfoCache
         {
             int lastErr = Marshal.GetLastWin32Error();
 
-            // Some SD Card readers show a drive letter even when empty, and BitLocker can have a volume locked.
-            // Instead of erroring out, let's just ignore those.
+            // Ignore:
+            // - Some SD Card readers show a drive letter even when empty.
+            // - BitLocker can have a volume locked.
+            // - Access denied can imply a volume needing escalated privilege to get its metadata,
+            //   sometimes indicating a Windows container volume.
             if (lastErr == ERROR_UNRECOGNIZED_VOLUME ||
                 lastErr == ERROR_NOT_READY ||
                 lastErr == ERROR_INVALID_PARAMETER ||
-                lastErr == FVE_E_LOCKED_VOLUME)
+                lastErr == FVE_E_LOCKED_VOLUME ||
+                lastErr == ERROR_ACCESS_DENIED)
             {
                 return null;
             }
