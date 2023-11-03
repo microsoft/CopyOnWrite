@@ -77,6 +77,10 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 ## Related Works
 * MSBuild SDK plugin to replace Copy task with one that supports CoW: https://github.com/microsoft/MSBuildSdks/tree/main/src/CopyOnWrite
 * CoW now available in the [`Microsoft.Build.Artifacts`](https://github.com/microsoft/MSBuildSdks/tree/main/src/Artifacts) MSBuild SDK plugin to speed up file copies for artifact staging.
+* CoW and Dev Drive series on Engineering@Microsoft blog:
+  * [Intro](https://devblogs.microsoft.com/engineering-at-microsoft/dev-drive-and-copy-on-write-for-developer-performance/)
+  * [Dev Drive released in Win11](https://devblogs.microsoft.com/engineering-at-microsoft/dev-drive-is-now-available/)
+  * [CoW-in-Win32 early access](https://devblogs.microsoft.com/engineering-at-microsoft/copy-on-write-in-win32-api-early-access/) - which when released may make this package unneeded at least for Windows.
 * Rust CoW: https://github.com/nicokoch/reflink
 
 ## Contributing
@@ -88,8 +92,7 @@ If you have a local ReFS drive volume on which to run ReFS related tests, set th
   `CoW_Test_ReFS_Drive=D:\`
 
 (You may need to exit and restart VS, VSCode, or consoles after setting this.)
-When this env var is not available, unit tests create and mount a local ReFS VHD for testing.
-You must run tests elevated (as admin), e.g. by opening Visual Studio as an admin before opening the solution.
+When this env var is not available, unit tests create and mount a local ReFS VHD for testing and must be run elevated (as admin), e.g. by opening Visual Studio as an admin before opening the solution.
 
 
 ## Performance Comparisons
