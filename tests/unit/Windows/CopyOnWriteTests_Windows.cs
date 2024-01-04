@@ -387,6 +387,102 @@ public sealed class CopyOnWriteTests_Windows
         Assert.AreEqual("This file is NOT set as sparse", fsutilResult.Output.Trim());
     }
 
+    [TestMethod]
+    public async Task StressAddRemoveRefs_SingleThreaded()
+    {
+        const string testSubDir = nameof(StressAddRemoveRefs_SingleThreaded);
+        using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create(testSubDir);
+        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true);
+
+        string originalFile = Path.Combine(refs.TestRootDir, "originalFile");
+        await File.WriteAllTextAsync(originalFile, "AABBCCDD");
+        ProcessRunResult originalQueryExtents = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"file queryExtentsAndRefCounts {originalFile}");
+        Console.WriteLine($"{originalFile} : {originalQueryExtents.Output}");
+
+        for (int i = 0; i < 400 /*cow.MaxClonesPerFile * 10*/; i++)
+        {
+            string clone = Path.Combine(refs.TestRootDir, $"clone{i}");
+            cow.CloneFile(originalFile, clone);
+            originalQueryExtents = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"file queryExtentsAndRefCounts {originalFile}");
+            // Cannot assert exact refcount on logical cluster - the Dev Drive/ReFS logical cluster refcount has delayed accounting.
+            Console.WriteLine($"{originalFile} : {originalQueryExtents.Output}");
+
+            Console.WriteLine($"Deleting clone {clone}");
+            File.Delete(clone);
+            originalQueryExtents = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"file queryExtentsAndRefCounts {originalFile}");
+            // Cannot assert exact refcount on logical cluster - the Dev Drive/ReFS logical cluster refcount has delayed accounting.
+            Console.WriteLine($"{originalFile} : {originalQueryExtents.Output}");
+        }
+
+        await WaitForRefAccountingAsync(originalFile);
+    }
+
+    [TestMethod]
+    public async Task StressAddRemoveRefs_ParallelClonesDeletes()
+    {
+        const string testSubDir = nameof(StressAddRemoveRefs_ParallelClonesDeletes);
+        using WindowsReFsDriveSession refs = WindowsReFsDriveSession.Create(testSubDir);
+        ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance(forceUniqueInstance: true);
+
+        string originalFile = Path.Combine(refs.TestRootDir, "originalFile");
+        await File.WriteAllTextAsync(originalFile, "AABBCCDD");
+        ProcessRunResult originalQueryExtents = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"file queryExtentsAndRefCounts {originalFile}");
+        Console.WriteLine($"{originalFile} : {originalQueryExtents.Output}");
+
+        const int numClones = 40;
+        // const string numClonesPlusOneAsHex = "0x29";
+        var clonePaths = new string[numClones];
+
+        for (int iterations = 0; iterations < 20; iterations++)
+        {
+            Console.WriteLine($"Parallel creating {numClones} clones");
+            Parallel.For(0, numClones, i =>
+            {
+                clonePaths[i] = Path.Combine(refs.TestRootDir, $"clone{i}");
+                cow.CloneFile(originalFile, clonePaths[i]);
+            });
+
+            originalQueryExtents = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"file queryExtentsAndRefCounts {originalFile}");
+            // Cannot assert exact refcount on logical cluster - the Dev Drive/ReFS logical cluster refcount has delayed accounting.
+            Console.WriteLine($"{originalFile} : {originalQueryExtents.Output}");
+
+            Console.WriteLine($"Parallel deleting {numClones} clones");
+            Parallel.ForEach(clonePaths, File.Delete);
+
+            originalQueryExtents = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"file queryExtentsAndRefCounts {originalFile}");
+            // Cannot assert exact refcount on logical cluster - the Dev Drive/ReFS logical cluster refcount has delayed accounting.
+            Console.WriteLine($"{originalFile} : {originalQueryExtents.Output}");
+        }
+
+        await WaitForRefAccountingAsync(originalFile);
+    }
+
+    private static async Task WaitForRefAccountingAsync(string originalFile)
+    {
+        Console.WriteLine("Waiting for delayed ref accounting on original file to reset to 1 ref");
+
+        // Wait a long time but not infinitely. Typical accounting delay is a few seconds.
+        bool accountingCorrect = false;
+        for (int i = 0; i < 1000; i++)
+        {
+            ProcessRunResult originalQueryExtents = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"file queryExtentsAndRefCounts {originalFile}");
+            Console.WriteLine($"{originalFile} : {originalQueryExtents.Output}");
+            if (originalQueryExtents.Output.Trim().EndsWith("Ref: 0x1", StringComparison.Ordinal))
+            {
+                accountingCorrect = true;
+                break;
+            }
+
+            await Task.Delay(250);
+        }
+
+        Console.WriteLine();
+        if (!accountingCorrect)
+        {
+            Assert.Fail("Ref accounting did not reset after some time");
+        }
+    }
+
     private static void CloneFileMissingSourceFileInExistingDir(string refsRoot, CloneFlags cloneFlags)
     {
         string sourceFilePath = Path.Combine(refsRoot, "source_" + nameof(CloneFileMissingSourceFileInExistingDir));
