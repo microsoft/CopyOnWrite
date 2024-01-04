@@ -430,7 +430,6 @@ public sealed class CopyOnWriteTests_Windows
         Console.WriteLine($"{originalFile} : {originalQueryExtents.Output}");
 
         const int numClones = 40;
-        // const string numClonesPlusOneAsHex = "0x29";
         var clonePaths = new string[numClones];
 
         for (int iterations = 0; iterations < 20; iterations++)
