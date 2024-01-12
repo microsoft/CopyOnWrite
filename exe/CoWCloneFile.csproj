@@ -2,7 +2,7 @@
   <PropertyGroup>
     <RootNamespace>Microsoft.CopyOnWrite</RootNamespace>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <PlatformTarget>x64</PlatformTarget>
     <DistribDir>$(DistribRoot)CloneFileTool\</DistribDir>
     <SelfContained>true</SelfContained>
