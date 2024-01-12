@@ -9,6 +9,7 @@ Defender real-time scanning was disabled in the test directory. See CoWCompariso
 
 ### Benchmark data in reverse temporal order
 
+* Jan 2024 - Windows [Preview Win11 23H2 with copy-on-write implementation built into OS APIs](./Win11_23H2_Jan2024_10.0.26020.1000.md) (with feature flag turned on) - fixes large file clone performance
 * Oct 2023 - Windows [Canary Win11 22H2 with early copy-on-write implementation built into OS APIs](./Win11_22H2_Oct2023_10.0.25982.1000.md)
 * Oct 2023 - Windows [Win11 22H2 initial Dev Drive release](./Win11_22H2_Oct2023_10.0.22621.2506.md)
 * May 2023 - Windows [prerelease Dev Drive](./Win11_22H2_May2023.md)

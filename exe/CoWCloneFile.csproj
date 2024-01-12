@@ -2,23 +2,19 @@
   <PropertyGroup>
     <RootNamespace>Microsoft.CopyOnWrite</RootNamespace>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <PlatformTarget>x64</PlatformTarget>
-    <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
     <DistribDir>$(DistribRoot)CloneFileTool\</DistribDir>
+    <SelfContained>true</SelfContained>
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommandLineParser" Version="2.8.0" />
+    <PackageReference Include="CommandLineParser" Version="2.9.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Lib\CopyOnWrite.csproj" />
   </ItemGroup>
-
-  <Target Name="PostBuildPublish" AfterTargets="PostBuildEvent" Inputs="$(OutputPath)CoWCloneFile.exe" Outputs="$(DistribDir)CoWCloneFile.exe">
-    <!-- ReadyToRun / self-contained pre-compiled .exe -->
-    <Exec Command="dotnet publish --no-build --configuration $(Configuration) --self-contained true --output $(DistribDir)" />
-  </Target>
 
 </Project>
