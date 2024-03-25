@@ -103,6 +103,7 @@ internal sealed class VolumeInfoCache
                                     "If the drive was added recently you may need to recreate the filesystem cache.");
     }
 
+    private const int ERROR_FILE_NOT_FOUND = 2;
     private const int ERROR_ACCESS_DENIED = 5;
     private const int ERROR_NOT_READY = 21;
     private const int ERROR_INVALID_PARAMETER = 87;
@@ -129,11 +130,13 @@ internal sealed class VolumeInfoCache
             // - BitLocker can have a volume locked.
             // - Access denied can imply a volume needing escalated privilege to get its metadata,
             //   sometimes indicating a Windows container volume.
+            // - Not found can occur as a timing issue on some machines.
             if (lastErr == ERROR_UNRECOGNIZED_VOLUME ||
                 lastErr == ERROR_NOT_READY ||
                 lastErr == ERROR_INVALID_PARAMETER ||
                 lastErr == FVE_E_LOCKED_VOLUME ||
-                lastErr == ERROR_ACCESS_DENIED)
+                lastErr == ERROR_ACCESS_DENIED ||
+                lastErr == ERROR_FILE_NOT_FOUND)
             {
                 return null;
             }
