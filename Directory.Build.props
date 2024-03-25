@@ -18,6 +18,8 @@
 
     <!-- Reduce output dir size by avoiding satellite assembly binplace -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <Deterministic>true</Deterministic>
   </PropertyGroup>
 
   <!-- Common assembly version and other properties. Also used in package publish. -->
