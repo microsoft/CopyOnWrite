@@ -103,8 +103,6 @@ internal sealed class VolumeInfoCache
                                     "If the drive was added recently you may need to recreate the filesystem cache.");
     }
 
-    private const int ERROR_FILE_NOT_FOUND = 2;
-    private const int ERROR_ACCESS_DENIED = 5;
     private const int ERROR_NOT_READY = 21;
     private const int ERROR_INVALID_PARAMETER = 87;
     private const int ERROR_UNRECOGNIZED_VOLUME = 1005;
@@ -135,8 +133,8 @@ internal sealed class VolumeInfoCache
                 lastErr == ERROR_NOT_READY ||
                 lastErr == ERROR_INVALID_PARAMETER ||
                 lastErr == FVE_E_LOCKED_VOLUME ||
-                lastErr == ERROR_ACCESS_DENIED ||
-                lastErr == ERROR_FILE_NOT_FOUND)
+                lastErr == NativeMethods.ERROR_ACCESS_DENIED ||
+                lastErr == NativeMethods.ERROR_FILE_NOT_FOUND)
             {
                 return null;
             }
