@@ -43,6 +43,7 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 
 [![NuGet version (CopyOnWrite)](https://img.shields.io/nuget/v/CopyOnWrite?style=plastic)](https://www.nuget.org/packages/CopyOnWrite)
 
+* 0.3.10 September 2024: Add ERROR_NO_SUCH_DEVICE handling on volume enumeration
 * 0.3.9 September 2024: Fix https://github.com/microsoft/CopyOnWrite/issues/44 - follow up on ignoring FILE_NOT_FOUND on volume enumeration
 * 0.3.8 March 2024: Fix https://github.com/microsoft/MSBuildSdks/issues/546 - ignore FILE_NOT_FOUND on volume enumeration. Plus add SourceLink to the main library.
 * 0.3.7 September 2023: Fix #30 - ignore ACCESS_DENIED on volume enumeration to avoid need to escalate privilege on Windows.
