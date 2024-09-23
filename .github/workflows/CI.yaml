@@ -41,5 +41,5 @@ jobs:
           @rem CODESYNC: WindowsReFSDriveSession.cs
           set CoW_Test_ReFS_Drive=E:\
 
-          dotnet test --no-build
+          dotnet test
         shell: cmd
