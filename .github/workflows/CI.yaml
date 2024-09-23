@@ -41,6 +41,5 @@ jobs:
           @rem CODESYNC: WindowsReFSDriveSession.cs
           set CoW_Test_ReFS_Drive=E:\
 
-          set DOTNET_HOST_PATH=%DOTNET_INSTALL_DIR%\dotnet.exe
-          dotnet test --no-restore
+          dotnet test --configuration Release --no-build
         shell: cmd
