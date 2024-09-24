@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -132,6 +133,35 @@ public sealed class CopyOnWriteTests_Windows
         Assert.AreEqual(source1FI.Length, dest2FI.Length);
         string dest2Contents = await File.ReadAllTextAsync(dest2Path);
         Assert.AreEqual("AABBCCDD", dest2Contents);
+
+        // Clone a file with an Alternate Data Stream.
+        string adsSource = Path.Combine(refsTestRoot, "AltDataStreamSource");
+        var adsSourceFI = new FileInfo(adsSource);
+        await File.WriteAllTextAsync(adsSource, "aaaaa");
+        await File.WriteAllTextAsync(adsSource + ":x", "bbbbbbb");
+        string adsDest = Path.Combine(refsTestRoot, "AltDataStreamDestination");
+        cow.CloneFile(adsSource, adsDest, cloneFlags);
+        Assert.IsTrue(File.Exists(adsDest));
+        var adsDestFI = new FileInfo(adsDest);
+        Assert.AreEqual(adsSourceFI.Length, adsDestFI.Length);
+        string adsDestContents = await File.ReadAllTextAsync(adsDest);
+        Assert.AreEqual("aaaaa", adsDestContents);
+        Assert.IsFalse(File.Exists(adsDest + ":x"), "Expect that the alt data stream was not cloned");
+
+        const int ERROR_NOT_SUPPORTED = 50;
+        try
+        {
+            cow.CloneFile(source1Path, adsDest + ":x", cloneFlags);
+            Assert.Fail("Expected ERROR_NOT_SUPPORTED exception. Has cloning an alt data stream been added in newer Windows?");
+        }
+        catch (Win32Exception win32Ex) when (win32Ex.NativeErrorCode == ERROR_NOT_SUPPORTED)
+        {
+            // Expected.
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
 
         // TODO: Clone a hardlink and symlink.
 
