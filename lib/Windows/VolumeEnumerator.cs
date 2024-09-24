@@ -117,7 +117,13 @@ internal sealed class VolumeEnumerator : IDisposable
 
         while (GetNextVolume(out string? volumeName))
         {
-            yield return new VolumePaths(volumeName!, GetVolumePathNamesForVolumeName(volumeName!, driveLetterUpperToSubstDriveLetterUpper));
+            IReadOnlyList<string> volumePathNames = GetVolumePathNamesForVolumeName(volumeName!, driveLetterUpperToSubstDriveLetterUpper);
+            if (volumePathNames.Count == 0)
+            {
+                // Skip volumes with no mount points.
+                continue;
+            }
+            yield return new VolumePaths(volumeName!, volumePathNames);
         }
     }
 
@@ -137,6 +143,13 @@ internal sealed class VolumeEnumerator : IDisposable
             if (!success)
             {
                 int lastErr = Marshal.GetLastWin32Error();
+                if (lastErr == NativeMethods.ERROR_FILE_NOT_FOUND ||
+                    lastErr == NativeMethods.ERROR_NO_SUCH_DEVICE)
+                {
+                    // No mount points for this volume.
+                    return Array.Empty<string>();
+                }
+
                 if (lastErr != NativeMethods.ERROR_MORE_DATA)
                 {
                     throw new Win32Exception(lastErr,
