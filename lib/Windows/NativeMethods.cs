@@ -157,7 +157,9 @@ internal static class NativeMethods
     public const int ERROR_ACCESS_DENIED = 5;
     public const int ERROR_INVALID_HANDLE = 6;
     public const int ERROR_NO_MORE_FILES = 18;
+    public const int ERROR_DEV_NOT_EXIST = 55;
     public const int ERROR_MORE_DATA = 234;
+    public const int ERROR_NO_SUCH_DEVICE = 433;
 
     // ReFS specific WinError codes.
     public const int ERROR_BLOCK_TOO_MANY_REFERENCES = 347;

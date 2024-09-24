@@ -18,13 +18,15 @@
 
     <!-- Reduce output dir size by avoiding satellite assembly binplace -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <Deterministic>true</Deterministic>
   </PropertyGroup>
 
   <!-- Common assembly version and other properties. Also used in package publish. -->
   <PropertyGroup>
 
     <!-- DOCSYNC: When changing version number update README.md -->
-    <Version>0.3.7.0</Version>
+    <Version>0.3.11.0</Version>
     <AssemblyVersion>0.9.9999.0</AssemblyVersion>
 
     <Company>Microsoft</Company>
