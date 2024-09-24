@@ -4,7 +4,7 @@
 
   <PropertyGroup>
     <AssemblyName>Microsoft.CopyOnWrite.Tests.32bit</AssemblyName>
-    <PlatformTarget>x86</PlatformTarget>
+    <Platform>x86</Platform>
   </PropertyGroup>
 
 </Project>
