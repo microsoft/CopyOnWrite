@@ -144,6 +144,7 @@ internal sealed class VolumeEnumerator : IDisposable
             {
                 int lastErr = Marshal.GetLastWin32Error();
                 if (lastErr == NativeMethods.ERROR_FILE_NOT_FOUND ||
+                    lastErr == NativeMethods.ERROR_DEV_NOT_EXIST ||
                     lastErr == NativeMethods.ERROR_NO_SUCH_DEVICE)
                 {
                     // No mount points for this volume.
