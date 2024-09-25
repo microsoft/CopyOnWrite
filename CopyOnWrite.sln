@@ -5,11 +5,9 @@ VisualStudioVersion = 16.0.31424.327
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CopyOnWrite", "lib\CopyOnWrite.csproj", "{B59E2C21-24B9-4517-A0E1-BB562C61CCBE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CopyOnWriteTests", "tests\unit\64bit\CopyOnWriteTests.csproj", "{0274ECCA-90A8-49C9-8A2E-8E9E24DAE0F9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CopyOnWriteTests", "tests\unit\CopyOnWriteTests.csproj", "{0274ECCA-90A8-49C9-8A2E-8E9E24DAE0F9}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoWCloneFile", "exe\CoWCloneFile.csproj", "{0D904305-EBD1-4E75-98AA-DB28BB944E1E}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CopyOnWriteTests32", "tests\unit\32bit\CopyOnWriteTests32.csproj", "{EFA2A351-2AAA-4B5E-9F08-92747F95A407}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoWBenchmark", "tests\benchmark\CoWBenchmark.csproj", "{AB245A04-70E4-4C1F-A90F-AA6684FC1106}"
 EndProject
@@ -33,10 +31,6 @@ Global
 		{0D904305-EBD1-4E75-98AA-DB28BB944E1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0D904305-EBD1-4E75-98AA-DB28BB944E1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0D904305-EBD1-4E75-98AA-DB28BB944E1E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{EFA2A351-2AAA-4B5E-9F08-92747F95A407}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{EFA2A351-2AAA-4B5E-9F08-92747F95A407}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{EFA2A351-2AAA-4B5E-9F08-92747F95A407}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{EFA2A351-2AAA-4B5E-9F08-92747F95A407}.Release|Any CPU.Build.0 = Release|Any CPU
 		{AB245A04-70E4-4C1F-A90F-AA6684FC1106}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{AB245A04-70E4-4C1F-A90F-AA6684FC1106}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AB245A04-70E4-4C1F-A90F-AA6684FC1106}.Release|Any CPU.ActiveCfg = Release|Any CPU

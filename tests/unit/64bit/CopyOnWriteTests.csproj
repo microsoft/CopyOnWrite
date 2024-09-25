@@ -1,9 +1,0 @@
-﻿<Project Sdk="MSTest.Sdk">
-
-  <Import Project="../CopyOnWriteTests.props" />
-
-  <PropertyGroup>
-    <AssemblyName>Microsoft.CopyOnWrite.Tests</AssemblyName>
-  </PropertyGroup>
-
-</Project>
