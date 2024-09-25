@@ -1,0 +1,10 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../CopyOnWriteTests.props"/>
+
+  <PropertyGroup>
+    <AssemblyName>Microsoft.CopyOnWrite.Tests.32bit</AssemblyName>
+    <PlatformTarget>x86</PlatformTarget>
+  </PropertyGroup>
+
+</Project>
