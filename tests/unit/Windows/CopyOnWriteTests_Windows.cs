@@ -74,7 +74,7 @@ public sealed class CopyOnWriteTests_Windows
 
             try
             {
-                await cow.CloneFileAsync(sourceFilePath, destFilePath, CloneFlags.None, CancellationToken.None);
+                cow.CloneFile(sourceFilePath, destFilePath, CloneFlags.None);
                 Assert.Fail("Expected exception on NTFS");
             }
             catch (NotSupportedException ex)
@@ -378,11 +378,11 @@ public sealed class CopyOnWriteTests_Windows
         Assert.AreEqual("This file is NOT set as sparse", fsutilResult.Output.Trim());
         string nonSparseFileClone = Path.Combine(refs.TestRootDir, "nonSparseFileClone");
 
-        await cow.CloneFileAsync(sparseFile, sparseFileClone, CloneFlags.DestinationMustMatchSourceSparseness, CancellationToken.None);
+        cow.CloneFile(sparseFile, sparseFileClone, CloneFlags.DestinationMustMatchSourceSparseness);
         fsutilResult = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"sparse queryFlag {sparseFileClone}");
         Assert.AreEqual("This file is set as sparse", fsutilResult.Output.Trim());
 
-        await cow.CloneFileAsync(nonSparseFile, nonSparseFileClone, CloneFlags.DestinationMustMatchSourceSparseness, CancellationToken.None);
+        cow.CloneFile(nonSparseFile, nonSparseFileClone, CloneFlags.DestinationMustMatchSourceSparseness);
         fsutilResult = ProcessExecutionUtilities.RunAndCaptureOutput("fsutil", $"sparse queryFlag {nonSparseFileClone}");
         Assert.AreEqual("This file is NOT set as sparse", fsutilResult.Output.Trim());
     }
