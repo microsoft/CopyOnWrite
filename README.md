@@ -43,6 +43,7 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 
 [![NuGet version (CopyOnWrite)](https://img.shields.io/nuget/v/CopyOnWrite?style=plastic)](https://www.nuget.org/packages/CopyOnWrite)
 
+* 0.3.12 October 2024: Add ERROR_DEV_NOT_EXIST handling on getting free disk space
 * 0.3.11 September 2024: Add ERROR_DEV_NOT_EXIST handling on volume enumeration
 * 0.3.10 September 2024: Add ERROR_NO_SUCH_DEVICE handling on volume enumeration
 * 0.3.9 September 2024: Fix https://github.com/microsoft/CopyOnWrite/issues/44 - follow up on ignoring FILE_NOT_FOUND on volume enumeration

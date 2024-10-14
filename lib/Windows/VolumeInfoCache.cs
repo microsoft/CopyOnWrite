@@ -152,6 +152,11 @@ internal sealed class VolumeInfoCache
         if (!result)
         {
             int lastErr = Marshal.GetLastWin32Error();
+            if (lastErr == NativeMethods.ERROR_DEV_NOT_EXIST)
+            {
+                return null;
+            }
+            
             NativeMethods.ThrowSpecificIoException(lastErr,
                 $"Failed retrieving drive volume cluster layout information for {volumePaths.PrimaryDriveRootPath} with winerror {lastErr}");
         }
