@@ -2,8 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Microsoft.CopyOnWrite;
 
@@ -74,8 +72,7 @@ public interface ICopyOnWriteFilesystem
     /// <summary>
     /// Creates a copy-on-write link at <paramref name="destination"/> pointing
     /// to <paramref name="source"/>, overwriting any existing file or link.
-    /// Implicitly uses <see cref="CloneFlags.None"/>. NOTE: You should use
-    /// <see cref="CloneFileAsync"/> where possible.
+    /// Implicitly uses <see cref="CloneFlags.None"/>.
     /// </summary>
     /// <param name="source">The original file to which to link.</param>
     /// <param name="destination">
@@ -103,30 +100,6 @@ public interface ICopyOnWriteFilesystem
     /// The link attempt failed because a filesystem limit on the number of clones per file was exceeded. See <see cref="MaxClonesPerFile"/>.
     /// </exception>
     void CloneFile(string source, string destination, CloneFlags cloneFlags);
-
-    /// <summary>
-    /// Creates a copy-on-write link at <paramref name="destination"/> pointing
-    /// to <paramref name="source"/>, overwriting any existing file or link.
-    /// </summary>
-    /// <param name="source">The original file to which to link.</param>
-    /// <param name="destination">
-    /// The path where the link will be created. This must not already exist as a directory,
-    /// and the parent directory must exist before this call.
-    /// </param>
-    /// <param name="cloneFlags">Flags to change behavior during creation of the CoW link.</param>
-    /// <param name="cancellationToken">A cancellation token for this operation.</param>
-    /// <exception cref="System.NotSupportedException">Copy-on-write links are not supported between source and destination.</exception>
-    /// <exception cref="MaxCloneFileLinksExceededException">
-    /// The link attempt failed because a filesystem limit on the number of clones per file was exceeded. See <see cref="MaxClonesPerFile"/>.
-    /// </exception>
-#if NET6_0 || NETSTANDARD2_1
-    ValueTask
-#elif NETSTANDARD2_0
-    Task
-#else
-#error Target Framework not supported
-#endif
-        CloneFileAsync(string source, string destination, CloneFlags cloneFlags, CancellationToken cancellationToken);
 
     /// <summary>
     /// Clears and recreates internal cached information about the computer's filesystem.

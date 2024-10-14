@@ -4,8 +4,6 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 
 namespace Microsoft.CopyOnWrite.Windows;
@@ -79,19 +77,6 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     // Also see https://github.com/0xbadfca11/reflink/blob/master/reflink.cpp
     // (discussion in http://blog.dewin.me/2017/02/under-hood-how-does-refs-block-cloning.html).
     public void CloneFile(string source, string destination, CloneFlags cloneFlags)
-    {
-        CloneFileAsync(source, destination, cloneFlags, CancellationToken.None).GetAwaiter().GetResult();
-    }
-
-    public
-#if NET6_0 || NETSTANDARD2_1
-    ValueTask
-#elif NETSTANDARD2_0
-    Task
-#else
-#error Target Framework not supported
-#endif
-        CloneFileAsync(string source, string destination, CloneFlags cloneFlags, CancellationToken cancellationToken)
     {
         (string resolvedSource, bool sourceOk) = ResolvePathAndEnsureDriveLetterVolume(source, cloneFlags.HasFlag(CloneFlags.PathIsFullyResolved));
         if (!sourceOk)
@@ -259,14 +244,6 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                     $"Failed to turn off file sparseness with winerror {lastErr} for destination file '{destination}'");
             }
         }
-
-#if NET6_0 || NETSTANDARD2_1
-        return ValueTask.CompletedTask;
-#elif NETSTANDARD2_0
-        return Task.CompletedTask;
-#else
-#error Target Framework not supported
-#endif
     }
 
     // Separate method to avoid error creating DUPLICATE_EXTENTS_DATA on stack in async method.
