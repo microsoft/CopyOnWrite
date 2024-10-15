@@ -18,6 +18,10 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         # No "with: dotnet-version" specified -> use global.json
+      - name: Setup x86 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          architecture: x86
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
       - name: Shrink C drive and create a ReFS E drive, then run tests
@@ -42,7 +46,6 @@ jobs:
           set CoW_Test_ReFS_Drive=E:\
 
           dotnet test --configuration Release --no-build /bl
-          dir /s /b *.binlog
         shell: cmd
       - uses: actions/upload-artifact@v4
         if: always()
