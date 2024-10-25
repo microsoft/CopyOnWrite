@@ -134,7 +134,8 @@ internal sealed class VolumeInfoCache
                 lastErr == ERROR_INVALID_PARAMETER ||
                 lastErr == FVE_E_LOCKED_VOLUME ||
                 lastErr == NativeMethods.ERROR_ACCESS_DENIED ||
-                lastErr == NativeMethods.ERROR_FILE_NOT_FOUND)
+                lastErr == NativeMethods.ERROR_FILE_NOT_FOUND ||
+                lastErr == NativeMethods.ERROR_DEV_NOT_EXIST)
             {
                 return null;
             }
@@ -152,10 +153,6 @@ internal sealed class VolumeInfoCache
         if (!result)
         {
             int lastErr = Marshal.GetLastWin32Error();
-            if (lastErr == NativeMethods.ERROR_DEV_NOT_EXIST)
-            {
-                return null;
-            }
             
             NativeMethods.ThrowSpecificIoException(lastErr,
                 $"Failed retrieving drive volume cluster layout information for {volumePaths.PrimaryDriveRootPath} with winerror {lastErr}");
