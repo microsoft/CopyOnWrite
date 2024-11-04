@@ -82,7 +82,7 @@ internal sealed class VolumeInfoCache
         }
     }
 
-    public VolumeInfo GetVolumeForPath(string path)
+    public VolumeInfo? GetVolumeForPath(string path)
     {
         // Look up paths by drive letter to reduce the size of the resulting path array to search.
         int driveLetterIndex = IndexFromDriveLetter(path[0]);
@@ -91,11 +91,11 @@ internal sealed class VolumeInfoCache
         // Paths are sorted in reverse order to get longer paths ahead of shorter paths for prefix matching.
         // For cases where volumes are mounted under other volumes, e.g. a D: ReFS drive mounted
         // under D:\ReFS, we want to match the deeper path.
-        foreach (SubPathAndVolume spv in subPathsAndVolumes.Where(spv => spv.Volume is not null))
+        foreach (SubPathAndVolume spv in subPathsAndVolumes)
         {
             if (path.IsSubpathOf(spv.SubPath))
             {
-                return spv.Volume!;
+                return spv.Volume;
             }
         }
 

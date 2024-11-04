@@ -43,9 +43,9 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         }
 
         // Must be in the same volume.
-        VolumeInfo sourceVolume = _volumeInfoCache.GetVolumeForPath(resolvedSource);
-        VolumeInfo destVolume = _volumeInfoCache.GetVolumeForPath(resolvedDestination);
-        if (!ReferenceEquals(sourceVolume, destVolume))
+        VolumeInfo? sourceVolume = _volumeInfoCache.GetVolumeForPath(resolvedSource);
+        VolumeInfo? destVolume = _volumeInfoCache.GetVolumeForPath(resolvedDestination);
+        if (sourceVolume is null || destVolume is null || !ReferenceEquals(sourceVolume, destVolume))
         {
             return false;
         }
@@ -62,8 +62,8 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             return false;
         }
 
-        VolumeInfo volumeInfo = _volumeInfoCache.GetVolumeForPath(resolvedSource);
-        return volumeInfo.SupportsCoW;
+        VolumeInfo? volumeInfo = _volumeInfoCache.GetVolumeForPath(resolvedSource);
+        return volumeInfo?.SupportsCoW ?? false;
     }
 
     /// <inheritdoc />
@@ -84,10 +84,10 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             throw new NotSupportedException($"Source path '{source}' is not in the correct format");
         }
 
-        VolumeInfo sourceVolume = _volumeInfoCache.GetVolumeForPath(resolvedSource);
-        if (!sourceVolume.SupportsCoW)
+        VolumeInfo? sourceVolume = _volumeInfoCache.GetVolumeForPath(resolvedSource);
+        if (sourceVolume is null || !sourceVolume.SupportsCoW)
         {
-            throw new NotSupportedException($@"Drive volume {sourceVolume.PrimaryDriveLetterRoot} does not support copy-on-write clone links, i.e. is not formatted with ReFS");
+            throw new NotSupportedException($@"Drive volume {sourceVolume?.PrimaryDriveLetterRoot} does not support copy-on-write clone links, i.e. is not formatted with ReFS");
         }
 
         // Get an open file handle to the source file. We use FILE_FLAGS_NO_BUFFERING here

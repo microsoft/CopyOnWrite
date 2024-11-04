@@ -78,7 +78,7 @@ public sealed class DisposableTempDirectory : IDisposable
         }
 
         // Restore the previous current directory if necessary
-        if (_previousCurrentDirectory != null)
+        if (_previousCurrentDirectory is not null)
         {
             Environment.CurrentDirectory = _previousCurrentDirectory;
         }

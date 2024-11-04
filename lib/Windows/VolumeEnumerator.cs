@@ -86,7 +86,7 @@ internal sealed class VolumeEnumerator : IDisposable
 
                     NativeMethods.QueryDosDevice(drive, lpszDosDeviceNames, singleDriveMappingSize);
                     string? mappedToVolume = Marshal.PtrToStringUni(lpszDosDeviceNames);
-                    if (mappedToVolume != null)
+                    if (mappedToVolume is not null)
                     {
                         if (mappedToVolume.StartsWith(@"\??\", StringComparison.Ordinal))
                         {
@@ -219,10 +219,10 @@ internal sealed class VolumeEnumerator : IDisposable
         var sb = new StringBuilder(bufferLen);
         volumeName = null;
 
-        if (_findHandle == null)
+        if (_findHandle is null)
         {
             _findHandle = NativeMethods.FindFirstVolume(sb, bufferLen);
-            if (_findHandle != null && !_findHandle.IsInvalid)
+            if (_findHandle is not null && !_findHandle.IsInvalid)
             {
                 volumeName = sb.ToString();
                 return true;
