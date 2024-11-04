@@ -105,7 +105,7 @@ public class WindowsReFsDriveSession : IDisposable
     public void Dispose()
     {
         Directory.Delete(Path.GetDirectoryName(TestRootDir)!, recursive: true);
-        if (_removeVhdScriptPath != null)
+        if (_removeVhdScriptPath is not null)
         {
             RunPowershellScript(_removeVhdScriptPath, $"{_vhdDriveLetter}");
         }

@@ -114,7 +114,7 @@ internal static class NativeMethods
         public uint FileIndexHigh;
         public uint FileIndexLow;
 
-        public long FileSize => ((long)FileSizeHigh << 32) | FileSizeLow;
+        public readonly long FileSize => ((long)FileSizeHigh << 32) | FileSizeLow;
     }
 
     [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]

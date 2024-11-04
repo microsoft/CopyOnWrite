@@ -45,7 +45,7 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 
 [![NuGet version (CopyOnWrite)](https://img.shields.io/nuget/v/CopyOnWrite?style=plastic)](https://www.nuget.org/packages/CopyOnWrite)
 
-* 0.4.2 November 2024: Add STATUS_VHD_INVALID_STATE and ERROR_NO_SUCH_DEVICE handling on getting volume information
+* 0.4.2 November 2024: Loosened error handling getting volume information, any volume resulting in an error is ignored. This aids continued failures finding new unique error types based on al lthe various disk subsystems and drivers out there.
 * 0.4.1 October 2024: Add ERROR_DEV_NOT_EXIST handling on volume enumeration
 * 0.4.0 October 2024: Remove async versions of `CloneFile` as the implementation did not use overlapped I/O anyway. CoW support is releasing in the Server 2025 and Win11 24H2 wave, built into the `CopyFile` API suite and on by default for Dev Drive and ReFS, so overlapped I/O in this library will never be implemented. Resolves https://github.com/microsoft/CopyOnWrite/issues/50
 * 0.3.12 October 2024: Add ERROR_DEV_NOT_EXIST handling on getting free disk space
