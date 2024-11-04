@@ -118,7 +118,7 @@ internal sealed class VolumeInfoCache
         {
             // Ignore volumes that have errors.
             // Caveat: We don't have a callback to inform the caller that we cannot enumerate a volume,
-            // Which means CoW will simply invisibly not work. However, attempts to list individual
+            // which means CoW will simply invisibly not work. However, attempts to list individual
             // error codes proved difficult and prone to creating tons of new PRs after various deployments.
             //
             // Examples of things we are ignoring here:
