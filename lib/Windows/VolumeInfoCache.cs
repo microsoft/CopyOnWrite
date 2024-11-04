@@ -135,7 +135,9 @@ internal sealed class VolumeInfoCache
                 lastErr == FVE_E_LOCKED_VOLUME ||
                 lastErr == NativeMethods.ERROR_ACCESS_DENIED ||
                 lastErr == NativeMethods.ERROR_FILE_NOT_FOUND ||
-                lastErr == NativeMethods.ERROR_DEV_NOT_EXIST)
+                lastErr == NativeMethods.ERROR_DEV_NOT_EXIST ||
+                lastErr == NativeMethods.ERROR_NO_SUCH_DEVICE ||
+                lastErr == NativeMethods.STATUS_VHD_INVALID_STATE)
             {
                 return null;
             }
