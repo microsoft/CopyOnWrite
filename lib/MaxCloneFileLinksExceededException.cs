@@ -3,7 +3,6 @@
 
 using System;
 using System.IO;
-using System.Runtime.Serialization;
 
 namespace Microsoft.CopyOnWrite;
 
@@ -38,16 +37,6 @@ public sealed class MaxCloneFileLinksExceededException : IOException
     /// <param name="innerException">A child exception.</param>
     public MaxCloneFileLinksExceededException(string message, Exception innerException)
         : base(message, innerException)
-    {
-    }
-
-    /// <summary>
-    /// Serialization constructor.
-    /// </summary>
-    /// <param name="info">The serialization info.</param>
-    /// <param name="context">The streaming context.</param>
-    private MaxCloneFileLinksExceededException(SerializationInfo info, StreamingContext context)
-        : base(info, context)
     {
     }
 }

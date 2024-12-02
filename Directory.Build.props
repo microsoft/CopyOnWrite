@@ -26,12 +26,12 @@
   <PropertyGroup>
 
     <!-- DOCSYNC: When changing version number update README.md -->
-    <Version>0.4.2</Version>
+    <Version>0.5.0</Version>
     <AssemblyVersion>0.9.9999.0</AssemblyVersion>
 
     <Company>Microsoft</Company>
     <Copyright>Copyright (c) Microsoft Corporation</Copyright>
-    <Description>.NET library that encapsulates OS and filesystem differences in the ability to create Copy-on-Write file links.</Description>
+    <Description>.NET library that implements Copy-on-Write file links for Windows Dev Drive and ReFS.</Description>
     <Product>Microsoft.CopyOnWrite</Product>
 
   </PropertyGroup>
