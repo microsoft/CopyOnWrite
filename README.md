@@ -1,3 +1,5 @@
+*Note*: This library is being superseded by CoW support now built into the Windows 11 24H2 release, as well as [Windows Server 2025](https://learn.microsoft.com/en-us/windows-server/get-started/whats-new-windows-server-2025#block-cloning-support). Use of CoW is automatic for Dev Drive and ReFS volumes starting in these OS versions. See related notes in our [blog entry](https://devblogs.microsoft.com/engineering-at-microsoft/copy-on-write-performance-and-debugging/) and linked earlier articles. We will continue to accept bug fixes for this library, and updates for the related [`Microsoft.Build.CopyOnWrite`](https://github.com/microsoft/MSBuildSdks/tree/main/src/CopyOnWrite) and [`Microsoft.Build.Artifacts`](https://github.com/microsoft/MSBuildSdks/tree/main/src/Artifacts) SDKs to use newer versions.
+
 The CopyOnWrite library provides a .NET layer on top of Windows OS-specific logic that provides copy-on-write linking for files (a.k.a. CoW, file cloning, or reflinking). CoW linking provides the ability to copy a file without actually copying the original file's bytes from one disk location to another. The filesystem is in charge of ensuring that if the original file is modified or deleted, the CoW linked files remain unmodified by lazily copying the original file's bytes into each link. Unlike symlinks or hardlinks, writes to CoW links do not write through to the original file, as the filesystem breaks the link and copies in a lazy fashion. This enables scenarios like file caches where a single copy of a file held in a content-addressable or other store is safely linked to many locations in a filesystem with low I/O overhead.
 
 *NOTE: Only Windows functionality is implemented. On Linux and Mac using `File.Copy` is sufficient as it automatically uses CoW for [Linux](https://github.com/dotnet/runtime/pull/64264) (starting in .NET 7, and as long as a CoW compatible filesystem like `btrfs` is in use) and [Mac](https://github.com/dotnet/runtime/pull/79243) (.NET 8). A [similar PR](https://github.com/dotnet/runtime/pull/88695) for Windows did not make it into .NET, however there is [work underway](https://devblogs.microsoft.com/engineering-at-microsoft/copy-on-write-in-win32-api-early-access/) to integrate CoW into the Windows API in a possible future release.
@@ -43,6 +45,11 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 
 [![NuGet version (CopyOnWrite)](https://img.shields.io/nuget/v/CopyOnWrite?style=plastic)](https://www.nuget.org/packages/CopyOnWrite)
 
+* 0.5.0 December 2024: Move package framework support from .NET 6 to .NET 8 after 6 reached end-of-life.
+* 0.4.2 November 2024: Loosened error handling getting volume information, any volume resulting in an error is ignored. This aids continued failures finding new unique error types based on al lthe various disk subsystems and drivers out there.
+* 0.4.1 October 2024: Add ERROR_DEV_NOT_EXIST handling on volume enumeration
+* 0.4.0 October 2024: Remove async versions of `CloneFile` as the implementation did not use overlapped I/O anyway. CoW support is releasing in the Server 2025 and Win11 24H2 wave, built into the `CopyFile` API suite and on by default for Dev Drive and ReFS, so overlapped I/O in this library will never be implemented. Resolves https://github.com/microsoft/CopyOnWrite/issues/50
+* 0.3.12 October 2024: Add ERROR_DEV_NOT_EXIST handling on getting free disk space
 * 0.3.11 September 2024: Add ERROR_DEV_NOT_EXIST handling on volume enumeration
 * 0.3.10 September 2024: Add ERROR_NO_SUCH_DEVICE handling on volume enumeration
 * 0.3.9 September 2024: Fix https://github.com/microsoft/CopyOnWrite/issues/44 - follow up on ignoring FILE_NOT_FOUND on volume enumeration
@@ -79,12 +86,13 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 * 0.1.0 July 2021: Windows ReFS support. Mac and Linux throw NotSupportedException.
 
 ## Related Works
-* MSBuild SDK plugin to replace Copy task with one that supports CoW: https://github.com/microsoft/MSBuildSdks/tree/main/src/CopyOnWrite
+* MSBuild SDK plugin to replace Copy task with one that supports CoW: [Microsoft.Build.CopyOnWrite](https://github.com/microsoft/MSBuildSdks/tree/main/src/CopyOnWrite)
 * CoW now available in the [`Microsoft.Build.Artifacts`](https://github.com/microsoft/MSBuildSdks/tree/main/src/Artifacts) MSBuild SDK plugin to speed up file copies for artifact staging.
 * CoW and Dev Drive series on Engineering@Microsoft blog:
   * [Intro](https://devblogs.microsoft.com/engineering-at-microsoft/dev-drive-and-copy-on-write-for-developer-performance/)
   * [Dev Drive released in Win11](https://devblogs.microsoft.com/engineering-at-microsoft/dev-drive-is-now-available/)
-  * [CoW-in-Win32 early access](https://devblogs.microsoft.com/engineering-at-microsoft/copy-on-write-in-win32-api-early-access/) - which when released may make this package unneeded at least for Windows.
+  * [CoW-in-Win32 early access](https://devblogs.microsoft.com/engineering-at-microsoft/copy-on-write-in-win32-api-early-access/) - which when released will make this package unneeded.
+  * [Real-world performance and debugging](https://devblogs.microsoft.com/engineering-at-microsoft/copy-on-write-performance-and-debugging/)
 * Rust CoW: https://github.com/nicokoch/reflink
 
 ## Contributing

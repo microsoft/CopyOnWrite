@@ -114,7 +114,7 @@ internal static class NativeMethods
         public uint FileIndexHigh;
         public uint FileIndexLow;
 
-        public long FileSize => ((long)FileSizeHigh << 32) | FileSizeLow;
+        public readonly long FileSize => ((long)FileSizeHigh << 32) | FileSizeLow;
     }
 
     [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
@@ -160,6 +160,7 @@ internal static class NativeMethods
     public const int ERROR_DEV_NOT_EXIST = 55;
     public const int ERROR_MORE_DATA = 234;
     public const int ERROR_NO_SUCH_DEVICE = 433;
+    public const int STATUS_VHD_INVALID_STATE = unchecked((int)0xC03A001C);
 
     // ReFS specific WinError codes.
     public const int ERROR_BLOCK_TOO_MANY_REFERENCES = 347;

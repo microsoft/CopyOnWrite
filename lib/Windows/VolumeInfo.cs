@@ -3,7 +3,7 @@
 
 namespace Microsoft.CopyOnWrite.Windows;
 
-internal class VolumeInfo
+internal sealed class VolumeInfo
 {
     public VolumeInfo(string primaryDriveLetterRoot, string volumeName, bool supportsCoW, long clusterSize)
     {

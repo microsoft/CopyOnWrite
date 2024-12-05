@@ -4,8 +4,6 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 
 namespace Microsoft.CopyOnWrite.Windows;
@@ -45,9 +43,9 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         }
 
         // Must be in the same volume.
-        VolumeInfo sourceVolume = _volumeInfoCache.GetVolumeForPath(resolvedSource);
-        VolumeInfo destVolume = _volumeInfoCache.GetVolumeForPath(resolvedDestination);
-        if (!ReferenceEquals(sourceVolume, destVolume))
+        VolumeInfo? sourceVolume = _volumeInfoCache.GetVolumeForPath(resolvedSource);
+        VolumeInfo? destVolume = _volumeInfoCache.GetVolumeForPath(resolvedDestination);
+        if (sourceVolume is null || destVolume is null || !ReferenceEquals(sourceVolume, destVolume))
         {
             return false;
         }
@@ -64,8 +62,8 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
             return false;
         }
 
-        VolumeInfo volumeInfo = _volumeInfoCache.GetVolumeForPath(resolvedSource);
-        return volumeInfo.SupportsCoW;
+        VolumeInfo? volumeInfo = _volumeInfoCache.GetVolumeForPath(resolvedSource);
+        return volumeInfo?.SupportsCoW ?? false;
     }
 
     /// <inheritdoc />
@@ -80,29 +78,16 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
     // (discussion in http://blog.dewin.me/2017/02/under-hood-how-does-refs-block-cloning.html).
     public void CloneFile(string source, string destination, CloneFlags cloneFlags)
     {
-        CloneFileAsync(source, destination, cloneFlags, CancellationToken.None).GetAwaiter().GetResult();
-    }
-
-    public
-#if NET6_0 || NETSTANDARD2_1
-    ValueTask
-#elif NETSTANDARD2_0
-    Task
-#else
-#error Target Framework not supported
-#endif
-        CloneFileAsync(string source, string destination, CloneFlags cloneFlags, CancellationToken cancellationToken)
-    {
         (string resolvedSource, bool sourceOk) = ResolvePathAndEnsureDriveLetterVolume(source, cloneFlags.HasFlag(CloneFlags.PathIsFullyResolved));
         if (!sourceOk)
         {
             throw new NotSupportedException($"Source path '{source}' is not in the correct format");
         }
 
-        VolumeInfo sourceVolume = _volumeInfoCache.GetVolumeForPath(resolvedSource);
-        if (!sourceVolume.SupportsCoW)
+        VolumeInfo? sourceVolume = _volumeInfoCache.GetVolumeForPath(resolvedSource);
+        if (sourceVolume is null || !sourceVolume.SupportsCoW)
         {
-            throw new NotSupportedException($@"Drive volume {sourceVolume.PrimaryDriveLetterRoot} does not support copy-on-write clone links, i.e. is not formatted with ReFS");
+            throw new NotSupportedException($@"Drive volume {sourceVolume?.PrimaryDriveLetterRoot} does not support copy-on-write clone links, i.e. is not formatted with ReFS");
         }
 
         // Get an open file handle to the source file. We use FILE_FLAGS_NO_BUFFERING here
@@ -259,14 +244,6 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
                     $"Failed to turn off file sparseness with winerror {lastErr} for destination file '{destination}'");
             }
         }
-
-#if NET6_0 || NETSTANDARD2_1
-        return ValueTask.CompletedTask;
-#elif NETSTANDARD2_0
-        return Task.CompletedTask;
-#else
-#error Target Framework not supported
-#endif
     }
 
     // Separate method to avoid error creating DUPLICATE_EXTENTS_DATA on stack in async method.

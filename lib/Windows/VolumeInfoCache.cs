@@ -45,7 +45,7 @@ internal sealed class VolumeInfoCache
         _driveLetterSubPathsSortedInReverseOrder = new SubPathAndVolume[26][];
         for (int i = 0; i < _driveLetterSubPathsSortedInReverseOrder.Length; i++)
         {
-            _driveLetterSubPathsSortedInReverseOrder[i] = Array.Empty<SubPathAndVolume>();
+            _driveLetterSubPathsSortedInReverseOrder[i] = [];
         }
 
         foreach ((VolumePaths volumePaths, VolumeInfo? volumeInfo) in volumesAndMountedPaths)
@@ -65,7 +65,7 @@ internal sealed class VolumeInfoCache
                 // Typical case is for one volume to be mounted at one drive letter root path.
                 if (existingPaths.Length == 0)
                 {
-                    _driveLetterSubPathsSortedInReverseOrder[letterIndex] = new[] { newRef };
+                    _driveLetterSubPathsSortedInReverseOrder[letterIndex] = [newRef];
                 }
                 else
                 {
@@ -82,7 +82,7 @@ internal sealed class VolumeInfoCache
         }
     }
 
-    public VolumeInfo GetVolumeForPath(string path)
+    public VolumeInfo? GetVolumeForPath(string path)
     {
         // Look up paths by drive letter to reduce the size of the resulting path array to search.
         int driveLetterIndex = IndexFromDriveLetter(path[0]);
@@ -91,22 +91,17 @@ internal sealed class VolumeInfoCache
         // Paths are sorted in reverse order to get longer paths ahead of shorter paths for prefix matching.
         // For cases where volumes are mounted under other volumes, e.g. a D: ReFS drive mounted
         // under D:\ReFS, we want to match the deeper path.
-        foreach (SubPathAndVolume spv in subPathsAndVolumes.Where(spv => spv.Volume is not null))
+        foreach (SubPathAndVolume spv in subPathsAndVolumes)
         {
             if (path.IsSubpathOf(spv.SubPath))
             {
-                return spv.Volume!;
+                return spv.Volume;
             }
         }
 
         throw new ArgumentException($"No known volume information for '{path}'. " +
                                     "If the drive was added recently you may need to recreate the filesystem cache.");
     }
-
-    private const int ERROR_NOT_READY = 21;
-    private const int ERROR_INVALID_PARAMETER = 87;
-    private const int ERROR_UNRECOGNIZED_VOLUME = 1005;
-    private const int FVE_E_LOCKED_VOLUME = unchecked((int)0x80310000);
 
     private static VolumeInfo? GetVolumeInfo(VolumePaths volumePaths)
     {
@@ -121,26 +116,18 @@ internal sealed class VolumeInfoCache
             0);
         if (!result)
         {
-            int lastErr = Marshal.GetLastWin32Error();
-
-            // Ignore:
+            // Ignore volumes that have errors.
+            // Caveat: We don't have a callback to inform the caller that we cannot enumerate a volume,
+            // which means CoW will simply invisibly not work. However, attempts to list individual
+            // error codes proved difficult and prone to creating tons of new PRs after various deployments.
+            //
+            // Examples of things we are ignoring here:
             // - Some SD Card readers show a drive letter even when empty.
             // - BitLocker can have a volume locked.
             // - Access denied can imply a volume needing escalated privilege to get its metadata,
             //   sometimes indicating a Windows container volume.
             // - Not found can occur as a timing issue on some machines.
-            if (lastErr == ERROR_UNRECOGNIZED_VOLUME ||
-                lastErr == ERROR_NOT_READY ||
-                lastErr == ERROR_INVALID_PARAMETER ||
-                lastErr == FVE_E_LOCKED_VOLUME ||
-                lastErr == NativeMethods.ERROR_ACCESS_DENIED ||
-                lastErr == NativeMethods.ERROR_FILE_NOT_FOUND)
-            {
-                return null;
-            }
-
-            NativeMethods.ThrowSpecificIoException(lastErr,
-                $"Failed retrieving volume information for {volumePaths.PrimaryDriveRootPath} with winerror {lastErr}");
+            return null;
         }
 
         result = NativeMethods.GetDiskFreeSpace(
@@ -152,6 +139,7 @@ internal sealed class VolumeInfoCache
         if (!result)
         {
             int lastErr = Marshal.GetLastWin32Error();
+            
             NativeMethods.ThrowSpecificIoException(lastErr,
                 $"Failed retrieving drive volume cluster layout information for {volumePaths.PrimaryDriveRootPath} with winerror {lastErr}");
         }
