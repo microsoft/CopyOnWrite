@@ -22,6 +22,20 @@ namespace Microsoft.CopyOnWrite.Tests.Windows;
 public sealed class CopyOnWriteTests_Windows
 {
     [TestMethod]
+    public void DuplicateExtentsDataMatchesWin32Layout()
+    {
+        Type duplicateExtentsDataType = typeof(NativeMethods.DUPLICATE_EXTENTS_DATA);
+
+        Assert.IsFalse(duplicateExtentsDataType.IsByRefLike);
+        Assert.AreEqual(typeof(IntPtr), duplicateExtentsDataType.GetField(nameof(NativeMethods.DUPLICATE_EXTENTS_DATA.FileHandle))?.FieldType);
+        Assert.AreEqual(0, Marshal.OffsetOf<NativeMethods.DUPLICATE_EXTENTS_DATA>(nameof(NativeMethods.DUPLICATE_EXTENTS_DATA.FileHandle)).ToInt32());
+        Assert.AreEqual(8, Marshal.OffsetOf<NativeMethods.DUPLICATE_EXTENTS_DATA>(nameof(NativeMethods.DUPLICATE_EXTENTS_DATA.SourceFileOffset)).ToInt32());
+        Assert.AreEqual(16, Marshal.OffsetOf<NativeMethods.DUPLICATE_EXTENTS_DATA>(nameof(NativeMethods.DUPLICATE_EXTENTS_DATA.TargetFileOffset)).ToInt32());
+        Assert.AreEqual(24, Marshal.OffsetOf<NativeMethods.DUPLICATE_EXTENTS_DATA>(nameof(NativeMethods.DUPLICATE_EXTENTS_DATA.ByteCount)).ToInt32());
+        Assert.AreEqual(32, Marshal.SizeOf<NativeMethods.DUPLICATE_EXTENTS_DATA>());
+    }
+
+    [TestMethod]
     [DataRow(false)]
     [DataRow(true)]
     public void NtfsNegativeDetectionAndFailureToCopyExtents(bool fullyResolvedPaths)

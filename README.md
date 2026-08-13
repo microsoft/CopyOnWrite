@@ -45,6 +45,7 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 
 [![NuGet version (CopyOnWrite)](https://img.shields.io/nuget/v/CopyOnWrite?style=plastic)](https://www.nuget.org/packages/CopyOnWrite)
 
+* 0.5.1 August 2026: Fix file cloning on .NET 11 by using the native `HANDLE` layout for `DUPLICATE_EXTENTS_DATA`.
 * 0.5.0 December 2024: Move package framework support from .NET 6 to .NET 8 after 6 reached end-of-life.
 * 0.4.2 November 2024: Loosened error handling getting volume information, any volume resulting in an error is ignored. This aids continued failures finding new unique error types based on al lthe various disk subsystems and drivers out there.
 * 0.4.1 October 2024: Add ERROR_DEV_NOT_EXIST handling on volume enumeration
