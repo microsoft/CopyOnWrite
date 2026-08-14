@@ -246,9 +246,37 @@ internal sealed class WindowsCopyOnWriteFilesystem : ICopyOnWriteFilesystem
         }
     }
 
-    // Separate method to avoid error creating DUPLICATE_EXTENTS_DATA on stack in async method.
     private void DuplicateExtents(
         SafeFileHandle sourceFileHandle,
+        SafeFileHandle destFileHandle,
+        long sourceFileLength,
+        VolumeInfo sourceVolume,
+        string source,
+        string destination)
+    {
+        bool sourceFileHandleRefAdded = false;
+        try
+        {
+            sourceFileHandle.DangerousAddRef(ref sourceFileHandleRefAdded);
+            DuplicateExtentsCore(
+                sourceFileHandle.DangerousGetHandle(),
+                destFileHandle,
+                sourceFileLength,
+                sourceVolume,
+                source,
+                destination);
+        }
+        finally
+        {
+            if (sourceFileHandleRefAdded)
+            {
+                sourceFileHandle.DangerousRelease();
+            }
+        }
+    }
+
+    private void DuplicateExtentsCore(
+        IntPtr sourceFileHandle,
         SafeFileHandle destFileHandle,
         long sourceFileLength,
         VolumeInfo sourceVolume,

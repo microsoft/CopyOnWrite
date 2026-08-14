@@ -168,9 +168,9 @@ internal static class NativeMethods
     public static readonly int SizeOfDuplicateExtentsData = Marshal.SizeOf(typeof(DUPLICATE_EXTENTS_DATA));
 
     [StructLayout(LayoutKind.Sequential)]
-    public ref struct DUPLICATE_EXTENTS_DATA
+    public struct DUPLICATE_EXTENTS_DATA
     {
-        public SafeHandle? FileHandle;
+        public IntPtr FileHandle;
         public long SourceFileOffset;
         public long TargetFileOffset;
         public long ByteCount;
