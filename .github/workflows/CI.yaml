@@ -16,8 +16,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v4
         # No "with: dotnet-version" specified -> use global.json
+      - name: Setup x86 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          architecture: x86
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
       - name: Shrink C drive and create a ReFS E drive, then run tests
@@ -41,5 +45,5 @@ jobs:
           @rem CODESYNC: WindowsReFSDriveSession.cs
           set CoW_Test_ReFS_Drive=E:\
 
-          dotnet test --no-restore
+          dotnet test --configuration Release --no-build
         shell: cmd
