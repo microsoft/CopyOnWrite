@@ -1,0 +1,84 @@
+variables:
+  Solution: 'CopyOnWrite.sln'
+  LogDirectory: '$(Build.ArtifactStagingDirectory)/logs'
+  ArtifactsDirectory: '$(Build.SourcesDirectory)/distrib/$(BuildConfiguration)'
+  BuildConfiguration: 'Release'
+  BuildPlatform: 'Any CPU'
+  MSBuildArgs: '"/p:Platform=$(BuildPlatform)" "/p:Configuration=$(BuildConfiguration)" "/BinaryLogger:$(LogDirectory)/msbuild.binlog"'
+  SignType: 'Real'
+  TeamName: 'MSBuild'
+trigger:
+  batch: true
+  branches:
+    include:
+    - 'main'
+    - 'refs/tags/*'
+  paths:
+    exclude:
+    - '*.md'
+pr: none
+resources:
+  repositories:
+  - repository: MicroBuildTemplate
+    type: git
+    name: 1ESPipelineTemplates/MicroBuildTemplate
+    ref: refs/tags/release
+extends:
+  template: azure-pipelines/MicroBuild.1ES.Official.yml@MicroBuildTemplate
+  parameters:
+    sdl:
+      sbom:
+        enabled: false
+    pool:
+      name: VSEngSS-MicroBuild2022-1ES
+      demands:
+      - msbuild
+      - visualstudio
+      os: windows
+    stages:
+    - stage: ''
+      displayName: 'Build'
+      jobs:
+      - job: Build
+        displayName: 'Build'
+        pool:
+          name: 'VSEngSS-MicroBuild2022-1ES'
+        templateContext:
+          mb:
+            signing:
+              enabled: true
+              signType: 'real'
+              signWithProd: true
+              zipSources: false
+          outputs:
+          - output: pipelineArtifact
+            displayName: 'Publish Artifacts'
+            condition: always()
+            targetPath: '$(ArtifactsDirectory)'
+            artifactName: 'artifacts'
+          - output: pipelineArtifact
+            displayName: 'Publish Logs'
+            condition: always()
+            targetPath: '$(LogDirectory)'
+            artifactName: 'logs'
+          - output: nuget
+            displayName: 'Push NuGet Package to nuget.org'
+            condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+            packageParentPath: '$(ArtifactsDirectory)'
+            packagesToPush: '$(ArtifactsDirectory)/**/Microsoft.CopyOnWrite*.nupkg'
+            nuGetFeedType: 'external'
+            publishFeedCredentials: 'NuGet-1ES-Full'
+        steps:
+        - script: 'echo ##vso[task.setvariable variable=SignType;]Real'
+          displayName: 'Set SignType to Real for tagged commits'
+          condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+        - task: UseDotNet@2
+          displayName: 'Install .NET'
+          inputs:
+            version: '8.x'
+        - task: DotNetCoreCLI@2
+          displayName: 'Build Solution'
+          inputs:
+            command: 'build'
+            projects: '$(Solution)'
+            arguments: '$(MSBuildArgs)'
