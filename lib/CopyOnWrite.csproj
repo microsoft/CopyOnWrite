@@ -22,10 +22,16 @@
   <ItemGroup>
     <!-- Source Link -->
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.VisualStudioEng.MicroBuild.Core" Version="1.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FilesToSign Include="$(TargetPath)" Authenticode="Microsoft400" />
   </ItemGroup>
 
   <PropertyGroup>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>Microsoft.CopyOnWrite</PackageId>
     <PackageOutputPath>$(DistribDir)</PackageOutputPath>
     
     <!-- Also see common properties in Directory.Build.props -->

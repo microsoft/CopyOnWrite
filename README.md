@@ -43,7 +43,7 @@ File clones on Windows do not actually allocate space on-drive for the clone. Th
 
 ## Release History
 
-[![NuGet version (CopyOnWrite)](https://img.shields.io/nuget/v/CopyOnWrite?style=plastic)](https://www.nuget.org/packages/CopyOnWrite)
+[![NuGet version (Microsoft.CopyOnWrite)](https://img.shields.io/nuget/v/Microsoft.CopyOnWrite?style=plastic)](https://www.nuget.org/packages/Microsoft.CopyOnWrite)
 
 * 0.5.1 August 2026: Fix file cloning on .NET 11 by using the native `HANDLE` layout for `DUPLICATE_EXTENTS_DATA`.
 * 0.5.0 December 2024: Move package framework support from .NET 6 to .NET 8 after 6 reached end-of-life.
