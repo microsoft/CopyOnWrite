@@ -67,7 +67,7 @@ extends:
             packageParentPath: '$(ArtifactsDirectory)'
             packagesToPush: '$(ArtifactsDirectory)/**/Microsoft.CopyOnWrite*.nupkg'
             nuGetFeedType: 'external'
-            publishFeedCredentials: 'NuGet-1ES-Full'
+            publishFeedCredentials: 'microsoft.copyonwrite-official'
         steps:
         - script: 'echo ##vso[task.setvariable variable=SignType;]Real'
           displayName: 'Set SignType to Real for tagged commits'
