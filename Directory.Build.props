@@ -31,7 +31,7 @@
 
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
-    <Copyright>Copyright (c) Microsoft Corporation</Copyright>
+    <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <Description>.NET library that implements Copy-on-Write file links for Windows Dev Drive and ReFS.</Description>
     <Product>Microsoft.CopyOnWrite</Product>
 
