@@ -29,6 +29,7 @@
     <Version>0.5.1</Version>
     <AssemblyVersion>0.9.9999.0</AssemblyVersion>
 
+    <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
     <Copyright>Copyright (c) Microsoft Corporation</Copyright>
     <Description>.NET library that implements Copy-on-Write file links for Windows Dev Drive and ReFS.</Description>
