@@ -11,13 +11,33 @@ on:
 
 jobs:
   WinBuildTest:
-    name: Windows build and test
+    name: Windows build and test (${{ matrix.framework }}, ${{ matrix.architecture }})
     runs-on: windows-2022  # 2019 is not sufficient, Windows 21H1+ is best for ReFS bug fixes
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [net10.0, net11.0]
+        architecture: [x64, x86]
+        include:
+          - architecture: x64
+            project: tests\unit\64bit\CopyOnWriteTests.csproj
+          - architecture: x86
+            project: tests\unit\32bit\CopyOnWriteTests32.csproj
     steps:
       - uses: actions/checkout@0717577d45739eb3c851188b29f50ed6c0b2194e # v2.8.0
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@871f041373faaad213a635d9afb62905ec029bbb # v1.10.1
-        # No "with: dotnet-version" specified -> use global.json
+      - name: Setup x86 .NET SDKs
+        if: matrix.architecture == 'x86'
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+          global-json-file: global.json
+          architecture: x86
+      - name: Setup x64 .NET SDKs
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+          global-json-file: global.json
+          architecture: x64
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
       - name: Shrink C drive and create a ReFS E drive, then run tests
@@ -41,5 +61,8 @@ jobs:
           @rem CODESYNC: WindowsReFSDriveSession.cs
           set CoW_Test_ReFS_Drive=E:\
 
-          dotnet test --no-restore
+          if "${{ matrix.architecture }}"=="x86" set "DOTNET_ROOT_X86=%ProgramFiles%\dotnet\x86"
+          if "${{ matrix.architecture }}"=="x86" set "DOTNET_ROOT(x86)=%ProgramFiles%\dotnet\x86"
+          dotnet test "${{ matrix.project }}" --configuration Release --framework ${{ matrix.framework }} --no-build --no-restore -- RunConfiguration.TreatNoTestsAsError=true
+          if errorlevel 1 exit /b 1
         shell: cmd
