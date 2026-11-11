@@ -75,7 +75,7 @@ extends:
         - task: UseDotNet@2
           displayName: 'Install .NET'
           inputs:
-            version: '8.x'
+            version: '11.x'
         - task: DotNetCoreCLI@2
           displayName: 'Build Solution'
           inputs:
